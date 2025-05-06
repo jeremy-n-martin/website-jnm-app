@@ -21,6 +21,7 @@
                     <li><a href="latin.html" class="tooltip" data-tooltip="Latin Expressions">🌐</a></li>
                     <li><a href="exemplars.html" class="tooltip" data-tooltip="Exemplars">🏅</a></li>
                     <li><a href="publications.html" class="tooltip" data-tooltip="Publications">📚</a></li>
+                    <li><a href="prompt.html" class="tooltip" data-tooltip="Prompt Guide">💬</a></li>
 
                 </ul>
             </nav>
@@ -229,7 +230,48 @@
                 title: "Né Varietur",
                 body: "Let it not be changed. A legal term used to indicate that something is final and unchangeable.",
                 tags: ["Legal", "Finality"]
-            }
+            },
+            {
+                id: "ad-hominem",
+                title: "Ad Hominem",
+                body: "Attacking the person. A logical fallacy where an argument is invalidated by attacking the person making the argument rather than the argument itself.",
+                tags: ["Fallacy", "Invalidity"]
+            },
+            {
+                id: "ludum-dare",
+                title: "Ludum Dare",
+                body: "Ludum Dare (LD; Classical Latin: [ˈluːdũː ˈdarɛ], meaning 'to give a game', par lequel on attaque l'adversaire directement dans sa personne en lui opposant ses propres paroles ou ses propres actes.",
+                tags: ["Game", "Latin"]
+            },
+            {
+                id: "docendo-discimus",
+                title: "Docendo Discimus",
+                body: "By teaching, we learn. This phrase suggests that teaching is a way to learn and understand.",
+                tags: ["Learning", "Teaching"]
+            },
+            {
+                id: "de-minimo",
+                title: "De Minimo",
+                body: "From the least. A phrase used to indicate that something is done from the smallest details.",
+                tags: ["Details", "Minimalism"]
+            },
+            {
+                id: "ad-minima",
+                title: "Ad Minima",
+                body: "To the least. A phrase used to indicate that something is done to the smallest details.",
+                tags: ["Details", "Minimalism"]
+            },
+            {
+                id: "de-minimis",
+                title: "De Minimis",
+                body: "From the least. A phrase used to indicate that something is done from the smallest details.",
+                tags: ["Details", "Minimalism"]
+            },
+            
+            
+            
+
+
         ];
 
 
@@ -251,12 +293,29 @@
             });
         });
 
+
         // Attribution des couleurs aux tags
         const tagColors = [
             "#FF5733", "#33FF57", "#3357FF", "#FF33A6", "#FFC300", "#8E44AD",
             "#3498DB", "#1ABC9C", "#E67E22", "#2ECC71", "#E74C3C", "#9B59B6",
             "#F1C40F", "#34495E", "#D35400", "#16A085", "#C0392B", "#27AE60",
-            "#2980B9", "#95A5A6"
+            "#2980B9", "#95A5A6", "#D93600", "#009688", "#3F51B5", "#0097A7", 
+            "#512DA8", "#1976D2", "#F44336", "#C2185B", "#689F38", "#F57C00",
+            "#5D4037", "#303F9F", "#388E3C", "#C62828", "#00838F", "#6A1B9A",
+            "#FF6F00", "#B71C1C", "#0D47A1", "#00695C", "#8BC34A", "#FF5722",
+            "#673AB7", "#E91E63", "#3E2723", "#004D40", "#4A148C", "#1A237E",
+            "#263238", "#455A64", "#9E9D24", "#BF360C", "#00796B", "#FBC02D",
+            "#5E35B1", "#0288D1", "#689F38", "#C0CA33", "#AFB42B", "#616161",
+            "#795548", "#D84315", "#8D6E63", "#33691E", "#827717", "#FF4081",
+            "#E53935", "#43A047", "#3949AB", "#00897B", "#D81B60", "#6D4C41",
+            "#FFA000", "#0091EA", "#D32F2F", "#F50057", "#00ACC1", "#7C4DFF",
+            "#6200EA", "#AA00FF", "#00C853", "#FF1744", "#00B8D4", "#C51162",
+            "#7B1FA2", "#00796B", "#0097A7", "#3F51B5", "#009688", "#D93600",
+            "#2980B9", "#95A5A6", "#C62828", "#388E3C", "#C0CA33", "#AFB42B",
+            "#616161", "#8D6E63", "#33691E", "#827717", "#FF4081", "#E53935",
+            "#43A047", "#3949AB", "#00897B", "#D81B60", "#6D4C41", "#FFA000",
+            "#0091EA", "#D32F2F", "#F50057", "#00ACC1", "#7C4DFF", "#6200EA",
+            "#AA00FF", "#00C853", "#FF1744", "#00B8D4", "#C51162"
         ];
 
         const tagColorMap = {};
@@ -298,8 +357,10 @@
                 tagCloudContainer.appendChild(tagElement);
             });
 
-            // Ajout du nuage de tags au conteneur principal
+            // Ajout du nuage de tags après le conteneur principal
             mainContainer.appendChild(tagCloudContainer);
+            // Ajout du nuage de tags avant le conteneur principal
+            // mainContainer.insertBefore(tagCloudContainer, document.querySelector(".facts-section"));
 
             const factsContainer = document.querySelector(".facts-section");
 
