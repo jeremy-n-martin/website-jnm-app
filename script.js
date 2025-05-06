@@ -19,7 +19,7 @@ class Particle {
         this.size = Math.random() * 5 + 1; // Taille aléatoire
         this.speedX = Math.random() * 3 - 1.5; // Vitesse horizontale aléatoire (-1.5 à 1.5)
         this.speedY = Math.random() * 3 - 1.5; // Vitesse verticale aléatoire (-1.5 à 1.5)
-        this.color = '#e0e0e0'; // Couleur des particules
+        this.color = '#FFFFFF'; // Couleur des particules
     }
 
     // Mettre à jour la position
@@ -66,8 +66,8 @@ function connectParticles() {
             let distance = Math.sqrt(dx * dx + dy * dy);
 
             if (distance < maxDistance) {
-                opacityValue = 1 - (distance / maxDistance);
-                ctx.strokeStyle = `rgba(224, 224, 224, ${opacityValue})`; // Blanc avec opacité
+                opacityValue = 1 - ( (distance / maxDistance) * (distance / maxDistance) * (distance / maxDistance) );
+                ctx.strokeStyle = `rgba(255, 255, 255, ${opacityValue})`; // Blanc avec opacité
                 ctx.lineWidth = 1;
                 ctx.beginPath();
                 ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
@@ -89,8 +89,8 @@ function connectMouseToParticles() {
         let distance = Math.sqrt(dx * dx + dy * dy);
 
         if (distance < mouse.radius) {
-            opacityValue = 1 - (distance / mouse.radius);
-            ctx.strokeStyle = `rgba(224, 224, 224, ${opacityValue})`; // Même couleur que les lignes particules
+            opacityValue = 1 - ( (distance / mouse.radius) * (distance / mouse.radius) * (distance / mouse.radius) );
+            ctx.strokeStyle = `rgba(255, 255, 255, ${opacityValue})`; // Même couleur que les lignes particules
             ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(mouse.x, mouse.y);
