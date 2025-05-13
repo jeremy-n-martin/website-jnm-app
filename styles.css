@@ -225,3 +225,11 @@ main {
         width: calc(29.9% - 20px);
     }
 }
+
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    overflow-x: hidden;
+}
