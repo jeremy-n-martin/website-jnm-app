@@ -1,145 +1,152 @@
-const canvas = document.getElementById('plexus-canvas');
-const ctx = canvas.getContext('2d');
+(function () {
+    'use strict';
 
-let particlesArray;
+    const canvas = document.getElementById('plexus-canvas');
+    if (!canvas) return;
 
-// Ajuster la taille du canvas à la fenêtre
-function resizeCanvas() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-}
-resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
-
-// Classe pour une Particule
-class Particle {
-    constructor() {
-        this.x = Math.random() * canvas.width;
-        this.y = Math.random() * canvas.height;
-        this.size = Math.random() * 5 + 1; // Taille aléatoire
-        this.speedX = Math.random() * 3 - 1.5; // Vitesse horizontale aléatoire (-1.5 à 1.5)
-        this.speedY = Math.random() * 3 - 1.5; // Vitesse verticale aléatoire (-1.5 à 1.5)
-        this.color = '#FFFFFF'; // Couleur des particules
+    const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReducedMotion) {
+        canvas.remove();
+        return;
     }
 
-    // Mettre à jour la position
-    update() {
-        // Gestion des bords
-        if (this.x > canvas.width || this.x < 0) {
-            this.speedX = -this.speedX;
-        }
-        if (this.y > canvas.height || this.y < 0) {
-            this.speedY = -this.speedY;
-        }
-        this.x += this.speedX;
-        this.y += this.speedY;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+        canvas.remove();
+        return;
     }
 
-    // Dessiner la particule
-    draw() {
-        ctx.fillStyle = this.color;
+    const MAX_PARTICLES = 150;
+    const CONNECTION_DISTANCE = 100;
+    const MOUSE_RADIUS = 150;
+    const PARTICLE_COLOR = '#FFFFFF';
+
+    let particles = [];
+    let animationId = null;
+    let isVisible = !document.hidden;
+
+    const mouse = { x: null, y: null };
+
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+
+    function createParticle() {
+        return {
+            x: Math.random() * canvas.width,
+            y: Math.random() * canvas.height,
+            size: Math.random() * 5 + 1,
+            speedX: Math.random() * 3 - 1.5,
+            speedY: Math.random() * 3 - 1.5,
+        };
+    }
+
+    function initParticles() {
+        const count = Math.min(
+            MAX_PARTICLES,
+            Math.floor((canvas.width * canvas.height) / 9000)
+        );
+        particles = Array.from({ length: count }, createParticle);
+    }
+
+    function updateParticle(particle) {
+        if (particle.x > canvas.width || particle.x < 0) particle.speedX *= -1;
+        if (particle.y > canvas.height || particle.y < 0) particle.speedY *= -1;
+        particle.x += particle.speedX;
+        particle.y += particle.speedY;
+    }
+
+    function drawParticle(particle) {
+        ctx.fillStyle = PARTICLE_COLOR;
         ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
         ctx.fill();
     }
-}
 
-// Initialiser les particules
-function init() {
-    particlesArray = [];
-    let numberOfParticles = (canvas.height * canvas.width) / 9000; // Nombre basé sur la taille de l'écran
-    if (numberOfParticles > 150) numberOfParticles = 150; // Limite max
-    for (let i = 0; i < numberOfParticles; i++) {
-        particlesArray.push(new Particle());
+    function drawConnection(x1, y1, x2, y2, maxDistance) {
+        const dx = x1 - x2;
+        const dy = y1 - y2;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        if (distance >= maxDistance) return;
+
+        const t = distance / maxDistance;
+        const opacity = 1 - t * t * t;
+        ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
     }
-}
-init();
 
-// Gérer les connexions entre particules
-function connectParticles() {
-    let opacityValue = 1;
-    const maxDistance = 100; // Distance max pour connecter
-    for (let a = 0; a < particlesArray.length; a++) {
-        for (let b = a; b < particlesArray.length; b++) {
-            let dx = particlesArray[a].x - particlesArray[b].x;
-            let dy = particlesArray[a].y - particlesArray[b].y;
-            let distance = Math.sqrt(dx * dx + dy * dy);
-
-            if (distance < maxDistance) {
-                opacityValue = 1 - ( (distance / maxDistance) * (distance / maxDistance) * (distance / maxDistance) );
-                ctx.strokeStyle = `rgba(255, 255, 255, ${opacityValue})`; // Blanc avec opacité
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
-                ctx.lineTo(particlesArray[b].x, particlesArray[b].y);
-                ctx.stroke();
+    function connectParticles() {
+        for (let a = 0; a < particles.length; a++) {
+            for (let b = a + 1; b < particles.length; b++) {
+                drawConnection(
+                    particles[a].x, particles[a].y,
+                    particles[b].x, particles[b].y,
+                    CONNECTION_DISTANCE
+                );
             }
         }
     }
-}
 
-// Nouvelle fonction pour connecter la souris aux particules
-function connectMouseToParticles() {
-    if (mouse.x === null || mouse.y === null) return; // Ne rien faire si la souris est hors du canvas
-
-    let opacityValue = 1;
-    for (let i = 0; i < particlesArray.length; i++) {
-        let dx = particlesArray[i].x - mouse.x;
-        let dy = particlesArray[i].y - mouse.y;
-        let distance = Math.sqrt(dx * dx + dy * dy);
-
-        if (distance < mouse.radius) {
-            opacityValue = 1 - ( (distance / mouse.radius) * (distance / mouse.radius) * (distance / mouse.radius) );
-            ctx.strokeStyle = `rgba(255, 255, 255, ${opacityValue})`; // Même couleur que les lignes particules
-            ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.moveTo(mouse.x, mouse.y);
-            ctx.lineTo(particlesArray[i].x, particlesArray[i].y);
-            ctx.stroke();
+    function connectMouseToParticles() {
+        if (mouse.x === null || mouse.y === null) return;
+        for (const particle of particles) {
+            drawConnection(mouse.x, mouse.y, particle.x, particle.y, MOUSE_RADIUS);
         }
     }
-}
 
-// Optionnel : Interaction avec la souris
-const mouse = {
-    x: null,
-    y: null,
-    radius: 150 // Zone d'influence de la souris
-};
+    function animate() {
+        if (!isVisible) return;
 
-window.addEventListener('mousemove', (event) => {
-    mouse.x = event.clientX;
-    mouse.y = event.clientY;
-});
-
-window.addEventListener('mouseout', () => {
-    mouse.x = null;
-    mouse.y = null;
-});
-
-// Boucle d'animation
-function animate() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height); // Effacer le canvas
-    for (let i = 0; i < particlesArray.length; i++) {
-        particlesArray[i].update();
-        particlesArray[i].draw();
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        for (const particle of particles) {
+            updateParticle(particle);
+            drawParticle(particle);
+        }
+        connectParticles();
+        connectMouseToParticles();
+        animationId = requestAnimationFrame(animate);
     }
-    connectParticles();
-    connectMouseToParticles();
-    requestAnimationFrame(animate); // Demander la prochaine frame
-}
 
-// Lancer l'animation
-animate();
+    function start() {
+        if (animationId !== null) return;
+        animationId = requestAnimationFrame(animate);
+    }
 
-// Ajuster la fonction connectParticles pour l'interaction souris (exemple simple)
-// (Remplacer la fonction connectParticles existante ou l'ajouter)
-// Pour l'instant, laissons l'interaction souris commentée ou simplifiée
-// pour se concentrer sur l'effet de base.
-// Nous pourrons ajouter une interaction plus poussée ensuite.
+    function stop() {
+        if (animationId === null) return;
+        cancelAnimationFrame(animationId);
+        animationId = null;
+    }
 
-// Ajout : Recalculer les particules lors du redimensionnement
-window.addEventListener('resize', () => {
+    function onResize() {
+        resizeCanvas();
+        initParticles();
+    }
+
     resizeCanvas();
-    init(); // Réinitialiser les particules pour la nouvelle taille
-}); 
+    initParticles();
+    start();
+
+    window.addEventListener('resize', onResize, { passive: true });
+
+    window.addEventListener('mousemove', (event) => {
+        mouse.x = event.clientX;
+        mouse.y = event.clientY;
+    }, { passive: true });
+
+    window.addEventListener('mouseout', () => {
+        mouse.x = null;
+        mouse.y = null;
+    });
+
+    document.addEventListener('visibilitychange', () => {
+        isVisible = !document.hidden;
+        if (isVisible) start();
+        else stop();
+    });
+})();

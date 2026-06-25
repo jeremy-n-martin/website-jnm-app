@@ -1,0 +1,1681 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Les boucles avec OpenClaw — pratique — Jeremy N. Martin">
+    <meta name="theme-color" content="#ffe6f2">
+    <title>Les boucles avec OpenClaw — pratique — Jeremy N. Martin</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32x32.png">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+</head>
+<body>
+    <canvas id="plexus-canvas" aria-hidden="true"></canvas>
+    <div class="containermain">
+        <header class="site-header">
+            <a href="../index.html" class="site-title">Jeremy N. Martin</a>
+            <nav class="site-nav" id="site-nav" data-depth="1" aria-label="Navigation principale"></nav>
+        </header>
+        <main class="prose">
+            <p>Ce guide couvre la <strong>mise en pratique des boucles avec OpenClaw</strong> : Gateway, agents, workspace, cron, heartbeat, tasks, Task Flow, goals, standing orders, hooks, skills, mémoire, plugins, tool search, sub-agents et sandbox.</p>
+<p>La différence importante : OpenClaw n&#39;est pas d&#39;abord un “Claude Code local”. C&#39;est un <strong>control plane d&#39;assistant personnel</strong>. Il reçoit des messages depuis des canaux humains, maintient des sessions, injecte un workspace, lance des runs planifiés, délègue à des sous-agents, appelle des plugins, garde une mémoire Markdown et peut livrer ses résultats vers chat ou webhook.</p>
+<p><strong>Version honnête</strong> : OpenClaw est très fort pour les boucles de vie quotidienne, d&#39;ops et d&#39;automatisation personnelle. Pour de la boucle de code pure, il faut être plus discipliné : isoler le dépôt, borner les outils, utiliser <code>git worktree</code>, mettre une porte objective, et ne pas confondre “agent joignable partout” avec “agent sûr partout”.</p>
+<hr>
+<h2>La boucle OpenClaw en une image</h2>
+<p>OpenClaw combine quatre niveaux qui sont souvent mélangés :</p>
+<table>
+<thead>
+<tr>
+<th>Niveau</th>
+<th>Question</th>
+<th>Primitive OpenClaw</th>
+<th>Risque principal</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Boucle de session</strong></td>
+<td>Comment l&#39;agent agit-il dans un échange ?</td>
+<td>session, tools, workspace, mémoire, skills</td>
+<td>Contexte qui gonfle, mémoire trop permissive</td>
+</tr>
+<tr>
+<td><strong>Boucle d&#39;objectif</strong></td>
+<td>Comment garder un cap sur plusieurs tours ?</td>
+<td><code>/goal</code>, statut, budget de tokens, reprise</td>
+<td>Objectif confondu avec tâche détachée</td>
+</tr>
+<tr>
+<td><strong>Boucle planifiée</strong></td>
+<td>Comment relancer sans prompt manuel ?</td>
+<td>cron, heartbeat, commitments, standing orders</td>
+<td>Trop de wakes, bruit, coût récurrent</td>
+</tr>
+<tr>
+<td><strong>Boucle orchestrée</strong></td>
+<td>Comment suivre du travail détaché ?</td>
+<td>tasks, Task Flow, sub-agents, webhooks</td>
+<td>Polling inutile, sous-agents qui coûtent cher</td>
+</tr>
+</tbody></table>
+<div class="mermaid">flowchart LR
+    U[Utilisateur<br/>WhatsApp / Telegram / Slack / TUI] --> G[Gateway<br/>control plane]
+
+    G --> S[Session<br/>objectif + transcript]
+    G --> C[Cron<br/>exact / isolé]
+    G --> H[Heartbeat<br/>périodique / contexte complet]
+    G --> W[Webhooks<br/>événements externes]
+
+    S --> A[Agent principal]
+    C --> A
+    H --> A
+    W --> A
+
+    A --> WS[Workspace<br/>AGENTS.md / MEMORY.md / skills]
+    A --> T[Tools + plugins + MCP]
+    A --> SA[Sous-agents<br/>sessions isolées]
+    A --> TASKS[Tasks ledger<br/>audit + historique]
+
+    SA --> TASKS
+    C --> TASKS
+    TASKS --> D[Livraison<br/>chat / webhook / silent]
+    A --> D
+
+    classDef core fill:#f8f5ff,stroke:#7c3aed,color:#1a1333;
+    classDef loop fill:#edf8e8,stroke:#5b9b45,color:#1b2a22;
+    classDef state fill:#fff7f2,stroke:#f0a06f,color:#111;
+    classDef out fill:#dff1ff,stroke:#0787ff,color:#111;
+
+    class G,A core;
+    class C,H,W,SA loop;
+    class S,WS,T,TASKS state;
+    class U,D out;</div>
+<p><strong>Traduction simple</strong> :</p>
+<ul>
+<li><code>cron</code> décide <strong>quand</strong> lancer.</li>
+<li><code>heartbeat</code> décide <strong>quand regarder autour</strong> avec le contexte de la session.</li>
+<li><code>tasks</code> dit <strong>ce qui s&#39;est réellement passé</strong>.</li>
+<li><code>workspace</code> dit <strong>ce que l&#39;agent doit toujours savoir</strong>.</li>
+<li><code>skills</code> disent <strong>comment faire une famille de tâches</strong>.</li>
+<li><code>sandbox</code> dit <strong>ce que l&#39;agent n&#39;a pas le droit de toucher</strong>.</li>
+</ul>
+<hr>
+<h2>État du repo au 25 juin 2026 : ce qui change pour les boucles</h2>
+<p>Dernier état consulté : OpenClaw affiche une release stable <code>2026.6.10</code> publiée le 24 juin 2026, et une pré-release <code>2026.6.11-beta.1</code> publiée le 24 juin 2026 en soirée.</p>
+<p>Pour les boucles, les points récents les plus importants sont moins “nouvelles commandes magiques” que <strong>fiabilisation du runtime</strong> :</p>
+<table>
+<thead>
+<tr>
+<th>Zone</th>
+<th>Impact boucle</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Fast mode automatique</strong></td>
+<td>Les petits échanges conversationnels peuvent être moins coûteux, tandis que les runs longs gardent un mode plus robuste.</td>
+</tr>
+<tr>
+<td><strong>Routage modèle plus fiable</strong></td>
+<td>Moins de surprise entre live chat, cron, fallback et provider.</td>
+</tr>
+<tr>
+<td><strong>État session / channel plus sûr</strong></td>
+<td>Moins de stale state entre canaux, sessions et livraisons cron.</td>
+</tr>
+<tr>
+<td><strong>Politiques trusted conservées dans les hooks composés</strong></td>
+<td>Important pour les flows à approbation sensible.</td>
+</tr>
+<tr>
+<td><strong>Cron sur SQLite + run history</strong></td>
+<td>Les jobs, l&#39;état runtime et l&#39;historique survivent mieux aux redémarrages.</td>
+</tr>
+<tr>
+<td><strong>Doctor / update / health</strong></td>
+<td>La maintenance devient une brique de boucle : updater, migrer, vérifier, redémarrer.</td>
+</tr>
+</tbody></table>
+<p><strong>Lecture critique</strong> : OpenClaw est une plateforme qui bouge vite. C&#39;est bon pour tester les boucles, mais risqué pour une boucle permanente trop permissive. Il faut donc versionner les règles, fixer un canal <code>stable</code> ou <code>beta</code>, et passer par <code>openclaw doctor</code> après les updates.</p>
+<hr>
+<h2>PARTIE 1 · Quand utiliser une boucle OpenClaw</h2>
+<h3>Le test des 4 conditions</h3>
+<p>La logique reste la même que pour les autres agents : une boucle ne vaut son coût que si les quatre conditions sont remplies.</p>
+<div class="mermaid">flowchart LR
+    T[Une boucle OpenClaw ?]
+    A[1<br/><b>Tâche répétée</b><br/><i>quotidienne, hebdo,<br/>événementielle</i>]
+    B[2<br/><b>Signal vérifiable</b><br/><i>test, checklist,<br/>résultat observable</i>]
+    C[3<br/><b>Budget absorbable</b><br/><i>tokens + API + outils</i>]
+    D[4<br/><b>Outils bornés</b><br/><i>workspace, sandbox,<br/>allowlist</i>]
+    OK[Construire<br/>petit]
+    NO[Prompt manuel<br/>ou commande ponctuelle]
+
+    T --> A --> B --> C --> D --> OK
+    A -. non .-> NO
+    B -. non .-> NO
+    C -. non .-> NO
+    D -. non .-> NO
+
+    classDef box fill:#fff,stroke:#222,color:#000;
+    classDef ok fill:#111,stroke:#111,color:#f15a24;
+    class T,A,B,C,D,NO box;
+    class OK ok;</div>
+<h3>Ce qu&#39;OpenClaw fait mieux que les agents de code purs</h3>
+<table>
+<thead>
+<tr>
+<th>Cas</th>
+<th>Pourquoi OpenClaw est adapté</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Assistant personnel multi-canaux</strong></td>
+<td>WhatsApp, Telegram, Slack, TUI, webhooks : la boucle démarre depuis le monde réel, pas seulement depuis un terminal.</td>
+</tr>
+<tr>
+<td><strong>Rapports périodiques</strong></td>
+<td><code>cron</code> lance à heure fixe et livre vers chat ou webhook.</td>
+</tr>
+<tr>
+<td><strong>Surveillance douce</strong></td>
+<td><code>heartbeat</code> regarde périodiquement l&#39;état de la session sans créer un task record à chaque fois.</td>
+</tr>
+<tr>
+<td><strong>Ops personnelle / serveur local</strong></td>
+<td><code>openclaw health</code>, <code>doctor</code>, cron, hooks, sandbox et logs créent une boucle d&#39;exploitation.</td>
+</tr>
+<tr>
+<td><strong>Automatisations à autorité limitée</strong></td>
+<td><code>standing orders</code> donnent un mandat permanent, mais avec scope, triggers et escalades.</td>
+</tr>
+<tr>
+<td><strong>Multi-agent contrôlé</strong></td>
+<td>Les sous-agents sont des tâches de fond avec sessions séparées, utiles pour recherche, longue exécution, vérification.</td>
+</tr>
+</tbody></table>
+<h3>Ce qu&#39;OpenClaw fait moins naturellement</h3>
+<table>
+<thead>
+<tr>
+<th>Cas</th>
+<th>Limite</th>
+<th>Correctif</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Refactor code massif</strong></td>
+<td>L&#39;assistant personnel n&#39;est pas une revue d&#39;architecture.</td>
+<td>Garder en prompt manuel ou worktree isolé.</td>
+</tr>
+<tr>
+<td><strong>Merge automatique</strong></td>
+<td>Trop d&#39;impact irréversible.</td>
+<td>PR brouillon + revue humaine.</td>
+</tr>
+<tr>
+<td><strong>Boucles secrets / finance / mails sensibles</strong></td>
+<td>Canaux + outils + mémoire = surface d&#39;attaque.</td>
+<td>Agent dédié, sandbox, allowlist, approbation.</td>
+</tr>
+<tr>
+<td><strong>Très grand catalogue d&#39;outils</strong></td>
+<td>Le contexte peut être mangé par les schémas.</td>
+<td>Tool Search ou exposition directe minimale.</td>
+</tr>
+<tr>
+<td><strong>Boucle sans signal objectif</strong></td>
+<td>L&#39;agent “se sent” terminé.</td>
+<td>Test, build, audit, sortie structurée.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>PARTIE 2 · Les primitives OpenClaw</h2>
+<h2>Gateway : le control plane</h2>
+<p>Le Gateway est le cœur opérationnel. Il garde la config, connecte les canaux, lance les sessions, exécute cron, applique les hooks, sert la Control UI, surveille la santé et route les messages.</p>
+<div class="mermaid">flowchart TB
+    CFG[~/.openclaw/openclaw.json<br/>config stricte JSON5]
+    GW[OpenClaw Gateway]
+    CH[Canaux<br/>Telegram / WhatsApp / Slack / Discord]
+    AG[Agents<br/>main / work / ops]
+    AU[Auth + credentials<br/>~/.openclaw]
+    WS[Workspaces<br/>~/.openclaw/workspace-*]
+    RT[Runtime<br/>cron / heartbeat / hooks / tasks]
+    UI[Control UI<br/>127.0.0.1:18789]
+
+    CFG --> GW
+    AU --> GW
+    CH --> GW
+    GW --> AG
+    AG --> WS
+    GW --> RT
+    GW --> UI
+
+    classDef core fill:#f8f5ff,stroke:#7c3aed,color:#1a1333;
+    classDef state fill:#fff7f2,stroke:#f0a06f,color:#111;
+    classDef ext fill:#edf8e8,stroke:#5b9b45,color:#111;
+    class GW core;
+    class CFG,AU,WS,RT state;
+    class CH,AG,UI ext;</div>
+<h3>Config minimale utile pour une boucle</h3>
+<pre><code class="language-json5">// ~/.openclaw/openclaw.json
+{
+  agents: {
+    defaults: {
+      workspace: &quot;~/.openclaw/workspace&quot;,
+      heartbeat: {
+        every: &quot;1h&quot;,
+        target: &quot;none&quot;
+      },
+      sandbox: {
+        enabled: true,
+        backend: &quot;docker&quot;,
+        workspaceAccess: &quot;rw&quot;
+      }
+    }
+  },
+  channels: {
+    telegram: {
+      dmPolicy: &quot;allowlist&quot;,
+      allowFrom: [&quot;&lt;ton_user_id&gt;&quot;]
+    }
+  }
+}</code></pre>
+<p><strong>Point critique</strong> : <code>~/.openclaw/openclaw.json</code> contrôle des choses très sensibles : canaux, modèles, outils, sandbox, automation. OpenClaw valide strictement la config ; ce n&#39;est pas un fichier fourre-tout.</p>
+<hr>
+<h2>Workspace : la mémoire opérationnelle</h2>
+<p>Le workspace est la maison de l&#39;agent. C&#39;est le <code>cwd</code> par défaut des outils de fichiers, et la source des fichiers injectés au démarrage.</p>
+<table>
+<thead>
+<tr>
+<th>Fichier</th>
+<th>Rôle dans une boucle</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>AGENTS.md</code></td>
+<td>Instructions opérationnelles, règles, standing orders, priorités.</td>
+</tr>
+<tr>
+<td><code>SOUL.md</code></td>
+<td>Persona, ton, limites comportementales.</td>
+</tr>
+<tr>
+<td><code>USER.md</code></td>
+<td>Informations utiles sur l&#39;utilisateur.</td>
+</tr>
+<tr>
+<td><code>IDENTITY.md</code></td>
+<td>Nom, identité, avatar / vibe de l&#39;agent.</td>
+</tr>
+<tr>
+<td><code>TOOLS.md</code></td>
+<td>Conventions locales d&#39;outils, commandes, chemins.</td>
+</tr>
+<tr>
+<td><code>HEARTBEAT.md</code></td>
+<td>Mini-checklist périodique ; doit rester court.</td>
+</tr>
+<tr>
+<td><code>BOOT.md</code></td>
+<td>Checklist au redémarrage Gateway si hooks activés.</td>
+</tr>
+<tr>
+<td><code>MEMORY.md</code></td>
+<td>Mémoire durable, compacte et curée.</td>
+</tr>
+<tr>
+<td><code>memory/YYYY-MM-DD.md</code></td>
+<td>Journal de travail détaillé, indexable mais pas injecté à chaque tour.</td>
+</tr>
+</tbody></table>
+<div class="mermaid">flowchart LR
+    WS[Workspace]
+    WS --> A[AGENTS.md<br/>mandat + règles]
+    WS --> H[HEARTBEAT.md<br/>check périodique]
+    WS --> M[MEMORY.md<br/>faits durables]
+    WS --> D[memory/YYYY-MM-DD.md<br/>journal quotidien]
+    WS --> SK[skills/<nom>/SKILL.md<br/>processus]
+    WS --> ST[STATE.md<br/>état de boucle]
+
+    classDef file fill:#fff,stroke:#111,color:#111;
+    classDef folder fill:#e8f5e9,stroke:#111,color:#111;
+    class WS folder;
+    class A,H,M,D,SK,ST file;</div>
+<h3><code>STATE.md</code> recommandé pour les boucles de code</h3>
+<p>OpenClaw a un task ledger, mais il ne remplace pas un fichier d&#39;état métier dans le dépôt ou workspace. Pour une boucle code, garder un <code>STATE.md</code> est plus lisible qu&#39;une mémoire diffuse.</p>
+<pre><code class="language-markdown"># État de boucle · openclaw-ci-triage
+
+## Dernier run
+2026-06-25 08:00 Europe/Paris · cron: ok · coût estimé: 0,42 € · tours: 11
+
+## Objectif actif
+Réduire les échecs CI simples sur la branche `main` sans toucher aux modules auth/billing.
+
+## Travaux en cours
+- `worktrees/ci-auth-lint` — lint corrigé, tests ciblés OK, PR brouillon à créer.
+- `worktrees/e2e-flake-login` — flake reproduit 3/10, pas de patch encore.
+
+## Preuves
+- `pnpm test src/auth/auth.test.ts` : OK
+- `pnpm check` : OK
+- CI distante : en attente
+
+## Escalade humaine
+- Timeout runner Ubuntu après 20 min : probable infra.
+- Fichiers `src/billing/**` détectés dans diff : interdit sans approbation.
+
+## Prochain run
+1. Relire les PR ouvertes.
+2. Vérifier CI.
+3. Fermer ou escalader les tâches sans signal après 2 runs.</code></pre>
+<hr>
+<h2>Cron : la boucle exacte et isolable</h2>
+<p><code>cron</code> est le battement de cœur <strong>exact</strong> : horaire précis, job persistant, sortie vers chat, webhook ou silence. Les définitions, l&#39;état runtime et l&#39;historique sont stockés dans SQLite, donc les redémarrages ne doivent pas faire disparaître les jobs.</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Usage</th>
+<th>Exemple</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>One-shot</td>
+<td>rappel ou action unique</td>
+<td>“demain 16h, vérifier le ticket”</td>
+</tr>
+<tr>
+<td>Recurring</td>
+<td>rapport, triage, check périodique</td>
+<td>“tous les jours à 8h”</td>
+</tr>
+<tr>
+<td>Isolated agent turn</td>
+<td>run avec session fraîche ou dédiée</td>
+<td>triage CI, rapport inbox</td>
+</tr>
+<tr>
+<td>Command job</td>
+<td>commande shell sans tour agent</td>
+<td>export, backup, healthcheck</td>
+</tr>
+<tr>
+<td>Webhook delivery</td>
+<td>intégrer un outil externe</td>
+<td>POST résultat vers endpoint</td>
+</tr>
+</tbody></table>
+<pre><code class="language-bash"># Lister les jobs
+openclaw cron list
+
+# Voir un job
+openclaw cron show &lt;job-id&gt;
+
+# Créer un run isolé léger tous les matins
+openclaw cron create &quot;0 7 * * *&quot; \
+  &quot;Résume les changements depuis hier et note uniquement les actions nécessaires.&quot; \
+  --name &quot;Brief matin&quot; \
+  --session isolated \
+  --light-context \
+  --no-deliver
+
+# Forcer un run et attendre le résultat
+openclaw cron run &lt;job-id&gt; --wait --wait-timeout 10m --poll-interval 2s
+
+# Inspecter l'historique
+openclaw cron runs --id &lt;job-id&gt; --limit 50</code></pre>
+<h3>Cron vs Heartbeat</h3>
+<table>
+<thead>
+<tr>
+<th>Dimension</th>
+<th>Cron</th>
+<th>Heartbeat</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Timing</td>
+<td>Exact, expression cron ou one-shot</td>
+<td>Approximatif, par défaut périodique</td>
+</tr>
+<tr>
+<td>Contexte</td>
+<td>Session isolée ou partagée</td>
+<td>Contexte complet de la session principale</td>
+</tr>
+<tr>
+<td>Task record</td>
+<td>Toujours créé</td>
+<td>Non</td>
+</tr>
+<tr>
+<td>Livraison</td>
+<td>Chat, webhook ou silent</td>
+<td>Inline dans la session principale</td>
+</tr>
+<tr>
+<td>Meilleur usage</td>
+<td>Rapports, rappels, jobs de fond</td>
+<td>Inbox checks, calendrier, notifications douces</td>
+</tr>
+</tbody></table>
+<p><strong>Règle simple</strong> :</p>
+<ul>
+<li>Besoin d&#39;une heure précise, d&#39;une trace d&#39;exécution ou d&#39;un run isolé → <code>cron</code>.</li>
+<li>Besoin d&#39;une vigilance périodique liée au contexte courant → <code>heartbeat</code>.</li>
+</ul>
+<hr>
+<h2>Heartbeat : la boucle de vigilance douce</h2>
+<p>Heartbeat lance périodiquement un tour dans la session principale. Il est utile pour :</p>
+<ul>
+<li>vérifier <code>HEARTBEAT.md</code> ;</li>
+<li>livrer un commitment inféré ;</li>
+<li>réveiller l&#39;agent si un task détaché a terminé ;</li>
+<li>éviter d&#39;avoir 15 cron jobs pour des micro-checks contextuels.</li>
+</ul>
+<pre><code class="language-markdown"># HEARTBEAT.md
+
+&lt;!-- Garder court : ce fichier est lu régulièrement. --&gt;
+
+- Vérifier s'il existe un résultat de task détaché à résumer.
+- Vérifier s'il y a un engagement dû aujourd'hui.
+- Si rien n'a changé, répondre HEARTBEAT_OK.</code></pre>
+<p><strong>Point économique</strong> : si <code>HEARTBEAT.md</code> est vide ou quasi vide, OpenClaw peut éviter le run pour économiser des appels. Donc ne transforme pas ce fichier en <code>AGENTS.md</code> bis.</p>
+<hr>
+<h2>Goal : garder le cap, pas planifier le travail</h2>
+<p><code>/goal</code> attache un objectif durable à la session courante. Il survit aux redémarrages et reste visible à l&#39;agent. Mais ce n&#39;est <strong>pas</strong> une task queue.</p>
+<table>
+<thead>
+<tr>
+<th>Commande</th>
+<th>Effet</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>/goal start &lt;objectif&gt;</code></td>
+<td>Crée un objectif pour la session courante.</td>
+</tr>
+<tr>
+<td><code>/goal</code> ou <code>/goal status</code></td>
+<td>Affiche l&#39;objectif, le statut et le budget.</td>
+</tr>
+<tr>
+<td><code>/goal pause &lt;note&gt;</code></td>
+<td>Met en pause volontaire.</td>
+</tr>
+<tr>
+<td><code>/goal block &lt;note&gt;</code></td>
+<td>Marque un vrai blocage.</td>
+</tr>
+<tr>
+<td><code>/goal resume</code></td>
+<td>Reprend depuis le même objectif.</td>
+</tr>
+<tr>
+<td><code>/goal complete &lt;note&gt;</code></td>
+<td>Marque comme atteint.</td>
+</tr>
+<tr>
+<td><code>/goal clear</code></td>
+<td>Supprime l&#39;objectif de la session.</td>
+</tr>
+</tbody></table>
+<div class="mermaid">stateDiagram-v2
+    [*] --> active: /goal start
+    active --> paused: /goal pause
+    active --> blocked: /goal block
+    active --> budget_limited: token budget atteint
+    paused --> active: /goal resume
+    blocked --> active: /goal resume
+    budget_limited --> active: /goal resume
+    active --> done: /goal complete
+    done --> [*]</div>
+<h3>Bon usage</h3>
+<pre><code class="language-text">/goal start Obtenir une CI verte pour la PR 87469 sans toucher à src/billing,
+avec preuve pnpm check + test ciblé + résumé du diff.</code></pre>
+<h3>Mauvais usage</h3>
+<pre><code class="language-text">/goal start Gère tout ce qui est important sur mon serveur.</code></pre>
+<p>Un goal doit être :</p>
+<ol>
+<li><strong>concret</strong> ;</li>
+<li><strong>vérifiable</strong> ;</li>
+<li><strong>borné</strong> ;</li>
+<li><strong>attaché à une session</strong> ;</li>
+<li><strong>séparé de la planification</strong>.</li>
+</ol>
+<p>Pour du travail détaché, répété, fan-out ou durable : utiliser <code>cron</code>, <code>tasks</code>, <code>Task Flow</code> ou <code>standing orders</code>.</p>
+<hr>
+<h2>Tasks et Task Flow : le journal, pas le réveil</h2>
+<p>Les <code>tasks</code> sont le registre du travail détaché. Elles ne planifient pas : elles enregistrent ce qui a été lancé, par qui, quand, avec quel statut.</p>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Crée une task ?</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Cron</td>
+<td>Oui</td>
+</tr>
+<tr>
+<td>Sub-agent</td>
+<td>Oui</td>
+</tr>
+<tr>
+<td>ACP run</td>
+<td>Oui</td>
+</tr>
+<tr>
+<td>CLI agent command</td>
+<td>Oui</td>
+</tr>
+<tr>
+<td>Heartbeat</td>
+<td>Non</td>
+</tr>
+<tr>
+<td>Chat interactif normal</td>
+<td>Non</td>
+</tr>
+</tbody></table>
+<p>Statuts typiques :</p>
+<div class="mermaid">flowchart LR
+    Q[queued] --> R[running]
+    R --> S[succeeded]
+    R --> F[failed]
+    R --> T[timed_out]
+    R --> C[cancelled]
+    R --> L[lost]
+
+    classDef ok fill:#edf8e8,stroke:#5b9b45,color:#111;
+    classDef bad fill:#fff7f2,stroke:#f0a06f,color:#111;
+    class Q,R ok;
+    class S ok;
+    class F,T,C,L bad;</div>
+<p>Commandes utiles :</p>
+<pre><code class="language-bash">openclaw tasks list
+openclaw tasks audit
+openclaw tasks flow list
+openclaw tasks flow show &lt;flow-id&gt;
+openclaw tasks flow cancel &lt;flow-id&gt;</code></pre>
+<p><strong>Erreur classique</strong> : faire une boucle de polling sur <code>/subagents list</code> ou <code>tasks list</code>. OpenClaw favorise les complétions push : un travail détaché annonce son résultat ou réveille la session. Le polling continu coûte et n&#39;améliore pas la fiabilité.</p>
+<hr>
+<h2>Standing orders : l&#39;autorité permanente</h2>
+<p>Les standing orders sont le point le plus “boucle produit”. Au lieu de redemander une tâche, tu donnes un <strong>mandat permanent</strong> : scope, triggers, gates, escalade.</p>
+<p>À mettre de préférence dans <code>AGENTS.md</code>, car il est auto-injecté à chaque session.</p>
+<pre><code class="language-markdown"># Standing order · triage CI
+
+## Scope
+Tu peux inspecter les échecs CI, lire les logs, créer un worktree, proposer un patch simple,
+et ouvrir une PR brouillon.
+
+## Triggers
+- Tous les jours à 8h via cron.
+- À la réception d'un webhook GitHub indiquant CI failed.
+
+## Approval gates
+- Ne jamais merger.
+- Ne jamais modifier `src/auth/**`, `src/billing/**` ou `infra/prod/**` sans approbation.
+- Ne jamais désactiver un test.
+
+## Escalation
+Escalader si :
+- le même échec survit à 2 runs ;
+- le diff touche une zone interdite ;
+- le fix nécessite une décision produit ;
+- le coût dépasse le budget du run.
+
+## Output
+Toujours écrire : hypothèse, fichiers touchés, commandes exécutées, preuve, prochaine action.</code></pre>
+<p><strong>Bonne séparation</strong> :</p>
+<table>
+<thead>
+<tr>
+<th>Élément</th>
+<th>Où le mettre</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Mandat permanent</td>
+<td><code>AGENTS.md</code></td>
+</tr>
+<tr>
+<td>Processus détaillé</td>
+<td><code>skills/&lt;nom&gt;/SKILL.md</code></td>
+</tr>
+<tr>
+<td>État courant</td>
+<td><code>STATE.md</code> ou task ledger</td>
+</tr>
+<tr>
+<td>Déclenchement exact</td>
+<td><code>cron</code></td>
+</tr>
+<tr>
+<td>Vigilance contextuelle</td>
+<td><code>HEARTBEAT.md</code></td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Skills : la connaissance procédurale</h2>
+<p>Les skills sont des fichiers Markdown <code>SKILL.md</code> avec frontmatter YAML. Elles enseignent à l&#39;agent <strong>comment et quand utiliser des outils</strong>.</p>
+<p>OpenClaw charge les skills depuis plusieurs sources, avec priorité :</p>
+<table>
+<thead>
+<tr>
+<th>Priorité</th>
+<th>Source</th>
+<th>Chemin typique</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>Workspace skills</td>
+<td><code>&lt;workspace&gt;/skills</code></td>
+</tr>
+<tr>
+<td>2</td>
+<td>Project agent skills</td>
+<td><code>&lt;workspace&gt;/.agents/skills</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td>Personal agent skills</td>
+<td><code>~/.agents/skills</code></td>
+</tr>
+<tr>
+<td>4</td>
+<td>Managed / local skills</td>
+<td><code>~/.openclaw/skills</code></td>
+</tr>
+<tr>
+<td>5</td>
+<td>Bundled skills</td>
+<td>install OpenClaw</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Extra dirs + plugin skills</td>
+<td>config</td>
+</tr>
+</tbody></table>
+<h3>Exemple skill de boucle</h3>
+<pre><code class="language-markdown">---
+name: ci-triage
+summary: Classer les échecs CI, proposer les correctifs simples, escalader le reste.
+when: &quot;Échec CI, cron quotidien ou demande explicite de triage CI.&quot;
+---
+
+# Skill · CI triage
+
+## Entrées
+- Lien PR ou branche
+- Dernier run CI
+- Fichier `STATE.md`
+
+## Étapes
+1. Lire `STATE.md`.
+2. Identifier le run CI le plus récent.
+3. Classer l'échec : env, flake, bug, dependency, infra, inconnu.
+4. Reproduire localement si possible.
+5. Si bug simple : créer un worktree et patcher.
+6. Lancer la porte : `pnpm check` + test ciblé.
+7. Mettre à jour `STATE.md`.
+
+## Interdits
+- Ne jamais désactiver un test.
+- Ne jamais modifier auth/billing/prod sans approbation.
+- Ne jamais livrer sans preuve objective.
+
+## Sortie obligatoire
+- Classification
+- Commandes exécutées
+- Fichiers modifiés
+- Preuve
+- Décision : PR brouillon, retry, escalade ou stop</code></pre>
+<h3>Point sécurité sur les skills</h3>
+<p>OpenClaw peut installer des skills communautaires. C&#39;est puissant, mais une skill est aussi une <strong>injection d&#39;instructions persistante</strong>. Pour une boucle sérieuse :</p>
+<ul>
+<li>auditer le <code>SKILL.md</code> ;</li>
+<li>vérifier les scripts auxiliaires ;</li>
+<li>pin la source / version ;</li>
+<li>éviter les skills qui demandent un accès trop large ;</li>
+<li>préférer les skills workspace pour les processus critiques.</li>
+</ul>
+<hr>
+<h2>Hooks : automatiser autour de la session</h2>
+<p>OpenClaw distingue deux familles :</p>
+<table>
+<thead>
+<tr>
+<th>Type</th>
+<th>Usage</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Internal hooks</strong></td>
+<td>Scripts autour du Gateway : <code>/new</code>, <code>/reset</code>, <code>/stop</code>, compaction, startup, message flow.</td>
+</tr>
+<tr>
+<td><strong>Plugin hooks typés</strong></td>
+<td>Middleware plus fin : bloquer un tool, réécrire un prompt, annuler un message, ajouter de la policy.</td>
+</tr>
+</tbody></table>
+<p>Événements utiles pour les boucles :</p>
+<table>
+<thead>
+<tr>
+<th>Événement</th>
+<th>Usage</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>command:new</code></td>
+<td>Initialiser un état de session.</td>
+</tr>
+<tr>
+<td><code>command:reset</code></td>
+<td>Sauvegarder avant purge.</td>
+</tr>
+<tr>
+<td><code>command:stop</code></td>
+<td>Écrire un résumé dans <code>memory/YYYY-MM-DD.md</code>.</td>
+</tr>
+<tr>
+<td><code>session:compact:before</code></td>
+<td>Archiver avant perte de détails.</td>
+</tr>
+<tr>
+<td><code>agent:bootstrap</code></td>
+<td>Contrôler les fichiers injectés.</td>
+</tr>
+<tr>
+<td><code>gateway:startup</code></td>
+<td>Lancer une checklist <code>BOOT.md</code>.</td>
+</tr>
+</tbody></table>
+<div class="mermaid">flowchart LR
+    E[Événement Gateway] --> H[Hook]
+    H --> P{Policy ?}
+    P -- log / mémoire --> M[Écrire mémoire ou état]
+    P -- blocage --> B[Refuser action]
+    P -- side effect --> X[API externe / notification]
+
+    classDef event fill:#dff1ff,stroke:#0787ff,color:#111;
+    classDef hook fill:#f8f5ff,stroke:#7c3aed,color:#111;
+    classDef out fill:#edf8e8,stroke:#5b9b45,color:#111;
+    class E event;
+    class H,P hook;
+    class M,B,X out;</div>
+<p><strong>Bon usage</strong> : écrire l&#39;état, auditer, bloquer une commande dangereuse.</p>
+<p><strong>Mauvais usage</strong> : cacher de la logique métier critique dans un script invisible que personne ne relit.</p>
+<hr>
+<h2>Sub-agents : paralléliser sans polluer la session principale</h2>
+<p>Les sub-agents sont des runs d&#39;agent en arrière-plan, avec leur propre session. Ils sont faits pour les tâches longues, lentes ou parallèles.</p>
+<table>
+<thead>
+<tr>
+<th>Propriété</th>
+<th>Conséquence</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Session séparée</td>
+<td>Le contexte principal reste plus léger.</td>
+</tr>
+<tr>
+<td>Task record</td>
+<td>Le travail est visible dans <code>tasks</code>.</td>
+</tr>
+<tr>
+<td>Pas de session tools par défaut</td>
+<td>Surface d&#39;outil plus difficile à détourner.</td>
+</tr>
+<tr>
+<td>Completion push</td>
+<td>Le parent reçoit le résultat ; inutile de poller en boucle.</td>
+</tr>
+<tr>
+<td>Coût séparé</td>
+<td>Chaque sub-agent a son contexte et ses tokens.</td>
+</tr>
+</tbody></table>
+<div class="mermaid">flowchart LR
+    P[Agent parent] -->|spawn| R[Sub-agent recherche]
+    P -->|spawn| I[Sub-agent implémentation]
+    P -->|spawn| V[Sub-agent vérification]
+
+    R -->|rapport| P
+    I -->|patch / rapport| P
+    V -->|preuve / rejet| P
+
+    P --> O[Réponse finale<br/>synthèse + décision]
+
+    classDef parent fill:#f8f5ff,stroke:#7c3aed,color:#111;
+    classDef child fill:#edf8e8,stroke:#5b9b45,color:#111;
+    classDef out fill:#dff1ff,stroke:#0787ff,color:#111;
+    class P parent;
+    class R,I,V child;
+    class O out;</div>
+<h3>Pattern recommandé</h3>
+<table>
+<thead>
+<tr>
+<th>Sous-agent</th>
+<th>Modèle</th>
+<th>Outils</th>
+<th>Mission</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>researcher</code></td>
+<td>cheap / rapide</td>
+<td>lecture, web, grep</td>
+<td>Trouver les faits, pas modifier.</td>
+</tr>
+<tr>
+<td><code>fixer</code></td>
+<td>meilleur modèle</td>
+<td>read/edit/bash bornés</td>
+<td>Corriger une zone précise.</td>
+</tr>
+<tr>
+<td><code>reviewer</code></td>
+<td>modèle différent si possible</td>
+<td>lecture + tests</td>
+<td>Vérifier contre la spec et la porte.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Agents multiples et bindings de canaux</h2>
+<p>OpenClaw peut avoir plusieurs agents, chacun avec son workspace, ses skills visibles, son modèle et ses bindings de canaux.</p>
+<p>Exemples :</p>
+<pre><code class="language-bash"># Créer un agent de travail séparé
+openclaw agents add work \
+  --workspace ~/.openclaw/workspace-work \
+  --bind telegram:work \
+  --non-interactive
+
+# Créer un agent ops
+openclaw agents add ops \
+  --workspace ~/.openclaw/workspace-ops \
+  --bind telegram:ops \
+  --non-interactive
+
+# Lister les bindings
+openclaw agents bindings --json</code></pre>
+<table>
+<thead>
+<tr>
+<th>Agent</th>
+<th>Workspace</th>
+<th>Skills</th>
+<th>Canaux</th>
+<th>Usage</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>main</code></td>
+<td><code>~/.openclaw/workspace</code></td>
+<td>perso, mémoire</td>
+<td>DM personnel</td>
+<td>assistant général</td>
+</tr>
+<tr>
+<td><code>work</code></td>
+<td><code>~/.openclaw/workspace-work</code></td>
+<td>code, GitHub, docs</td>
+<td>channel work</td>
+<td>tâches pro</td>
+</tr>
+<tr>
+<td><code>ops</code></td>
+<td><code>~/.openclaw/workspace-ops</code></td>
+<td>serveur, monitoring</td>
+<td>channel ops</td>
+<td>maintenance</td>
+</tr>
+</tbody></table>
+<p><strong>Règle forte</strong> : ne pas mettre tous les pouvoirs sur <code>main</code>. Le confort d&#39;un assistant unique crée une concentration de risques.</p>
+<hr>
+<h2>Plugins, MCP et Tool Search</h2>
+<p>OpenClaw peut exposer beaucoup d&#39;outils : outils natifs, plugins, MCP, client tools. Le piège est de tout donner à l&#39;agent au démarrage.</p>
+<table>
+<thead>
+<tr>
+<th>Surface</th>
+<th>Usage</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Tool plugins</strong></td>
+<td>Ajouter des outils appelables par l&#39;agent.</td>
+</tr>
+<tr>
+<td><strong>Plugin hooks</strong></td>
+<td>Intercepter / contrôler le cycle d&#39;exécution.</td>
+</tr>
+<tr>
+<td><strong>MCP</strong></td>
+<td>Brancher GitHub, Jira, DB, services externes.</td>
+</tr>
+<tr>
+<td><strong>Tool Search</strong></td>
+<td>Ne pas injecter tous les schémas d&#39;outils upfront.</td>
+</tr>
+</tbody></table>
+<p>Tool Search donne au modèle une interface compacte pour chercher, décrire et appeler les outils nécessaires, au lieu de saturer le contexte avec tout le catalogue.</p>
+<div class="mermaid">flowchart LR
+    A[Agent] --> TS[Tool Search]
+    TS --> C[Catalogue compact]
+    C --> D[Describe outil choisi]
+    D --> CALL[Call outil]
+    CALL --> R[Résultat]
+    R --> A
+
+    classDef core fill:#f8f5ff,stroke:#7c3aed,color:#111;
+    classDef tool fill:#edf8e8,stroke:#5b9b45,color:#111;
+    class A core;
+    class TS,C,D,CALL,R tool;</div>
+<p><strong>Règle économique</strong> : plus il y a d&#39;outils, plus il faut une stratégie de découverte. Pour une petite boucle, mieux vaut une allowlist courte qu&#39;un catalogue géant.</p>
+<hr>
+<h2>Sandbox : l&#39;isolation n&#39;est pas optionnelle</h2>
+<p>Le workspace OpenClaw est le <code>cwd</code> par défaut, <strong>pas</strong> un vrai sandbox. Les chemins absolus peuvent sortir du workspace si le sandboxing n&#39;est pas activé.</p>
+<p>Backends typiques :</p>
+<table>
+<thead>
+<tr>
+<th>Backend</th>
+<th>Usage</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Docker</td>
+<td>Isolation locale standard.</td>
+</tr>
+<tr>
+<td>SSH</td>
+<td>Runtime distant, utile sur serveur ou VM.</td>
+</tr>
+<tr>
+<td>OpenShell</td>
+<td>Runtime shell isolé / remote selon config.</td>
+</tr>
+</tbody></table>
+<p>Commandes utiles :</p>
+<pre><code class="language-bash"># Comprendre le sandbox effectif
+openclaw sandbox explain
+openclaw sandbox explain --agent work
+openclaw sandbox explain --json
+
+# Lister les runtimes
+openclaw sandbox list
+openclaw sandbox list --json
+
+# Recréer après update ou changement de config
+openclaw sandbox recreate --all
+openclaw sandbox recreate --agent work</code></pre>
+<h3>Politique minimale de boucle</h3>
+<table>
+<thead>
+<tr>
+<th>Zone</th>
+<th>Politique</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Workspace</td>
+<td>Un workspace par agent sensible.</td>
+</tr>
+<tr>
+<td>Code</td>
+<td>Un worktree par tâche.</td>
+</tr>
+<tr>
+<td>Secrets</td>
+<td>Pas d&#39;env large ; passer uniquement ce qui est nécessaire.</td>
+</tr>
+<tr>
+<td>Tools</td>
+<td>Allowlist courte.</td>
+</tr>
+<tr>
+<td>Réseau</td>
+<td>Pas d&#39;exposition publique du Gateway sans besoin explicite.</td>
+</tr>
+<tr>
+<td>Canaux</td>
+<td><code>dmPolicy: allowlist</code> ou pairing, jamais <code>open</code> par confort.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Worktrees avec OpenClaw</h2>
+<p>OpenClaw n&#39;est pas principalement un gestionnaire de worktrees comme Codex. Pour des boucles de code, il faut les construire explicitement.</p>
+<h3>Pattern simple</h3>
+<pre><code class="language-bash">mkdir -p ~/worktrees
+cd ~/src/mon-projet
+
+git fetch origin
+
+git worktree add ~/worktrees/ci-fix-auth -b openclaw/ci-fix-auth origin/main
+cd ~/worktrees/ci-fix-auth
+
+# Lancer OpenClaw avec un workspace ou une consigne qui pointe vers ce répertoire</code></pre>
+<h3>Pattern multi-agent</h3>
+<table>
+<thead>
+<tr>
+<th>Agent</th>
+<th>Workspace</th>
+<th>Worktree courant</th>
+<th>Rôle</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>work</code></td>
+<td><code>~/.openclaw/workspace-work</code></td>
+<td><code>~/worktrees/feature-a</code></td>
+<td>Implémentation</td>
+</tr>
+<tr>
+<td><code>review</code></td>
+<td><code>~/.openclaw/workspace-review</code></td>
+<td><code>~/worktrees/feature-a</code> en lecture</td>
+<td>Vérification</td>
+</tr>
+<tr>
+<td><code>ops</code></td>
+<td><code>~/.openclaw/workspace-ops</code></td>
+<td>aucun dépôt sensible</td>
+<td>Cron / reports</td>
+</tr>
+</tbody></table>
+<div class="mermaid">flowchart LR
+    R[Repo principal] --> W1[worktree feature-a]
+    R --> W2[worktree ci-fix]
+    R --> W3[worktree docs-pass]
+
+    A1[Agent work] --> W1
+    A2[Agent ci] --> W2
+    A3[Agent docs] --> W3
+
+    W1 --> PR1[PR brouillon]
+    W2 --> PR2[PR brouillon]
+    W3 --> PR3[PR brouillon]
+
+    classDef repo fill:#f8f5ff,stroke:#7c3aed,color:#111;
+    classDef wt fill:#edf8e8,stroke:#5b9b45,color:#111;
+    classDef pr fill:#dff1ff,stroke:#0787ff,color:#111;
+    class R,A1,A2,A3 repo;
+    class W1,W2,W3 wt;
+    class PR1,PR2,PR3 pr;</div>
+<p><strong>Limite franche</strong> : les worktrees éliminent les collisions de fichiers, pas la charge de revue.</p>
+<hr>
+<h2>PARTIE 3 · Construire la boucle OpenClaw minimale</h2>
+<p>La boucle minimale viable avec OpenClaw :</p>
+<div class="mermaid">flowchart TB
+    T[La boucle OpenClaw minimale]
+
+    subgraph B[4 briques]
+      direction LR
+      A[1<br/><b>Standing order</b><br/>mandat borné<br/><code>AGENTS.md</code>]
+      C[2<br/><b>Cron ou heartbeat</b><br/>déclencheur]
+      S[3<br/><b>Skill</b><br/>processus répétable<br/><code>SKILL.md</code>]
+      P[4<br/><b>Porte objective</b><br/>test / build / audit]
+    end
+
+    T --> A --> C --> S --> P
+    P --> E[STATE.md + tasks<br/>preuve + historique]
+    E --> A
+
+    classDef box fill:#fff,stroke:#222,color:#000;
+    classDef final fill:#111,stroke:#111,color:#f15a24;
+    class T,A,C,S,P,E box;</div>
+<h3>Ordre de construction</h3>
+<table>
+<thead>
+<tr>
+<th>Étape</th>
+<th>Action</th>
+<th>Sortie</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td>Run manuel dans une session normale</td>
+<td>Prompt qui marche une fois.</td>
+</tr>
+<tr>
+<td>2</td>
+<td>Créer <code>STATE.md</code></td>
+<td>L&#39;agent sait reprendre.</td>
+</tr>
+<tr>
+<td>3</td>
+<td>Extraire une skill</td>
+<td>Le processus devient stable.</td>
+</tr>
+<tr>
+<td>4</td>
+<td>Ajouter une porte objective</td>
+<td>La boucle peut dire non.</td>
+</tr>
+<tr>
+<td>5</td>
+<td>Ajouter cron ou heartbeat</td>
+<td>Le run devient autonome.</td>
+</tr>
+<tr>
+<td>6</td>
+<td>Ajouter sub-agent vérificateur</td>
+<td>Le faiseur ne se note plus seul.</td>
+</tr>
+<tr>
+<td>7</td>
+<td>Ajouter sandbox / permissions</td>
+<td>La boucle devient exploitable.</td>
+</tr>
+</tbody></table>
+<h3>Exemple complet : triage CI quotidien</h3>
+<h4>1. <code>AGENTS.md</code></h4>
+<pre><code class="language-markdown"># Agent work · règles de boucle
+
+Tu peux aider sur le dépôt `~/src/app`, mais tout changement doit passer par un worktree.
+
+## Interdits
+- Ne jamais merger.
+- Ne jamais push sur `main`.
+- Ne jamais modifier `src/billing/**`, `src/auth/**`, `.github/workflows/**` sans approbation.
+- Ne jamais désactiver un test pour faire passer la CI.
+
+## Porte obligatoire
+Avant de proposer une PR :
+- `pnpm check`
+- test ciblé lié au fichier modifié
+- résumé du diff
+- mise à jour `STATE.md`</code></pre>
+<h4>2. <code>skills/ci-triage/SKILL.md</code></h4>
+<pre><code class="language-markdown">---
+name: ci-triage
+summary: Triage CI borné avec worktree, reproduction, patch simple et escalade.
+---
+
+# CI triage
+
+1. Lire `STATE.md`.
+2. Identifier l'échec CI le plus récent.
+3. Classer : env, flake, bug, dependency, infra, inconnu.
+4. Créer ou réutiliser un worktree `~/worktrees/openclaw-ci-*`.
+5. Reproduire localement.
+6. Patch uniquement si la cause est locale et simple.
+7. Lancer la porte.
+8. Mettre à jour `STATE.md`.
+9. Sortir avec : classification, preuve, décision.</code></pre>
+<h4>3. Cron</h4>
+<pre><code class="language-bash">openclaw cron create &quot;0 8 * * 1-5&quot; \
+  &quot;Utilise la skill ci-triage sur le dépôt app. Si aucun échec clair n'existe, écris NO_REPLY.&quot; \
+  --name &quot;CI triage morning&quot; \
+  --agent work \
+  --session isolated \
+  --light-context \
+  --tools read,exec \
+  --model openrouter/gpt-5-mini \
+  --no-deliver</code></pre>
+<h4>4. Vérification humaine</h4>
+<pre><code class="language-bash">openclaw cron runs --id &lt;job-id&gt; --limit 10
+openclaw tasks audit
+cd ~/worktrees/openclaw-ci-*
+git diff
+pnpm check</code></pre>
+<hr>
+<h2>Patterns prêts à l&#39;emploi</h2>
+<h3>Pattern 1 — Rapport quotidien silencieux sauf action</h3>
+<table>
+<thead>
+<tr>
+<th>Élément</th>
+<th>Choix</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Déclencheur</td>
+<td><code>cron</code> tous les matins</td>
+</tr>
+<tr>
+<td>Contexte</td>
+<td><code>--light-context</code></td>
+</tr>
+<tr>
+<td>Sortie</td>
+<td><code>NO_REPLY</code> si rien à signaler</td>
+</tr>
+<tr>
+<td>État</td>
+<td><code>memory/YYYY-MM-DD.md</code> + éventuel <code>STATE.md</code></td>
+</tr>
+</tbody></table>
+<pre><code class="language-bash">openclaw cron create &quot;0 7 * * *&quot; \
+  &quot;Lis HEARTBEAT.md et les notes récentes. Réponds uniquement s'il y a une action concrète.&quot; \
+  --name &quot;Morning action scan&quot; \
+  --session isolated \
+  --light-context</code></pre>
+<h3>Pattern 2 — Surveillance douce via heartbeat</h3>
+<table>
+<thead>
+<tr>
+<th>Élément</th>
+<th>Choix</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Déclencheur</td>
+<td>heartbeat <code>1h</code></td>
+</tr>
+<tr>
+<td>Contexte</td>
+<td>session principale complète</td>
+</tr>
+<tr>
+<td>Sortie</td>
+<td><code>HEARTBEAT_OK</code> si rien</td>
+</tr>
+<tr>
+<td>Risque</td>
+<td>bruit et coût si checklist trop large</td>
+</tr>
+</tbody></table>
+<pre><code class="language-json5">{
+  agents: {
+    defaults: {
+      heartbeat: {
+        every: &quot;1h&quot;,
+        target: &quot;none&quot;
+      }
+    }
+  }
+}</code></pre>
+<h3>Pattern 3 — Sous-agent vérificateur</h3>
+<pre><code class="language-text">Spawn un sub-agent reviewer avec outils lecture + tests uniquement.
+Mission : vérifier que le diff respecte AGENTS.md et que la porte objective passe.
+Ne pas corriger. Retourner seulement : ACCEPT / REJECT + preuves.</code></pre>
+<h3>Pattern 4 — Agent ops séparé</h3>
+<pre><code class="language-bash">openclaw agents add ops \
+  --workspace ~/.openclaw/workspace-ops \
+  --bind telegram:ops \
+  --non-interactive</code></pre>
+<p><code>ops</code> reçoit les cron serveur, <code>work</code> reçoit les boucles code, <code>main</code> garde la conversation personnelle.</p>
+<h3>Pattern 5 — Gateway maintenance loop</h3>
+<pre><code class="language-bash">openclaw update --dry-run
+openclaw update
+openclaw doctor
+openclaw gateway restart
+openclaw health</code></pre>
+<p>À lancer manuellement ou à transformer en cron <strong>lecture seule</strong> qui signale les actions à faire, sans auto-update sur une machine sensible.</p>
+<hr>
+<h2>Garde-fous de production</h2>
+<table>
+<thead>
+<tr>
+<th>Risque</th>
+<th>Garde-fou</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Gateway exposé</td>
+<td>Localhost, VPN privé, allowlist, pairing ; pas de DM open.</td>
+</tr>
+<tr>
+<td>Skills malveillantes</td>
+<td>Audit, pin, ClawHub verify, pas d&#39;installation automatique.</td>
+</tr>
+<tr>
+<td>Mémoire polluée</td>
+<td>Distinguer <code>MEMORY.md</code> durable et <code>memory/*.md</code> journal.</td>
+</tr>
+<tr>
+<td>Secrets dans env</td>
+<td>SecretRef / sandbox config, pas d&#39;env globale injectée partout.</td>
+</tr>
+<tr>
+<td>Cron trop fréquent</td>
+<td>Cadence minimale, <code>NO_REPLY</code>, logs surveillés.</td>
+</tr>
+<tr>
+<td>Sub-agents en cascade</td>
+<td>Profondeur max, modèle cheap, mission courte.</td>
+</tr>
+<tr>
+<td>Tool catalog énorme</td>
+<td>Tool Search ou allowlist stricte.</td>
+</tr>
+<tr>
+<td>Workspace pas isolé</td>
+<td>Activer sandbox ; un workspace par agent sensible.</td>
+</tr>
+<tr>
+<td>Boucle de code trop large</td>
+<td>Worktree + porte + PR brouillon.</td>
+</tr>
+<tr>
+<td>Auto-validation</td>
+<td>Reviewer séparé + test objectif.</td>
+</tr>
+</tbody></table>
+<h3>La taxe sécurité spécifique OpenClaw</h3>
+<p>OpenClaw touche à des choses que les agents de code ne touchent pas toujours : messagerie, calendrier, mails, navigateur, système local, plugins communautaires, mémoire durable. La surface d&#39;attaque vient de la combinaison :</p>
+<p>$
+Risque \approx Pouvoirs \times Persistance \times Canaux \times Fréquence
+$</p>
+<p>Donc la bonne réponse n&#39;est pas “ne pas utiliser OpenClaw”. C&#39;est :</p>
+<ol>
+<li>réduire les pouvoirs par agent ;</li>
+<li>isoler les workspaces ;</li>
+<li>sandboxer ;</li>
+<li>limiter les canaux ;</li>
+<li>auditer les skills ;</li>
+<li>garder des portes objectives ;</li>
+<li>préférer les PR brouillons aux actions irréversibles.</li>
+</ol>
+<hr>
+<h2>Coûts et tokens</h2>
+<p>OpenClaw consomme à chaque réveil : bootstrap workspace, instructions, skills visibles, tool schemas ou Tool Search, historique, mémoire, sorties d&#39;outils, sub-agents.</p>
+<table>
+<thead>
+<tr>
+<th>Poste</th>
+<th>Pourquoi ça coûte</th>
+<th>Levier</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Heartbeat trop fréquent</td>
+<td>Même sans action, il peut appeler le modèle.</td>
+<td><code>HEARTBEAT.md</code> court, cadence plus lente, skip si vide.</td>
+</tr>
+<tr>
+<td>Cron verbeux</td>
+<td>Logs + historique + livraison.</td>
+<td><code>--light-context</code>, <code>NO_REPLY</code>, output borné.</td>
+</tr>
+<tr>
+<td>Skills nombreuses</td>
+<td>Catalogues injectés / compilés.</td>
+<td>Agent allowlists, skills par workspace.</td>
+</tr>
+<tr>
+<td>Plugins nombreux</td>
+<td>Schémas et outils en contexte.</td>
+<td>Tool Search, allowlist.</td>
+</tr>
+<tr>
+<td>Sub-agents</td>
+<td>Contextes séparés.</td>
+<td>Modèle moins cher, mission brève.</td>
+</tr>
+<tr>
+<td>Mémoire longue</td>
+<td>Bootstrap tronqué ou cher.</td>
+<td><code>MEMORY.md</code> compact, détails dans <code>memory/*.md</code>.</td>
+</tr>
+<tr>
+<td>Browser automation</td>
+<td>Lent, fragile, état externe.</td>
+<td>Sandbox + cleanup + timeout.</td>
+</tr>
+</tbody></table>
+<h3>Métriques à suivre</h3>
+<table>
+<thead>
+<tr>
+<th>Métrique</th>
+<th>Pourquoi</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Coût par changement accepté</td>
+<td>Mesure business réelle.</td>
+</tr>
+<tr>
+<td>Taux de <code>NO_REPLY</code></td>
+<td>Si bas, la boucle spamme ou produit trop de bruit.</td>
+</tr>
+<tr>
+<td>Taux de tasks <code>failed/timed_out/lost</code></td>
+<td>Santé runtime.</td>
+</tr>
+<tr>
+<td>Nombre de wakes par jour</td>
+<td>Coût récurrent.</td>
+</tr>
+<tr>
+<td>Nombre de skills visibles par agent</td>
+<td>Surface contexte + sécurité.</td>
+</tr>
+<tr>
+<td>Temps de revue humaine</td>
+<td>Goulot réel.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Erreurs qui transforment OpenClaw en gouffre</h2>
+<table>
+<thead>
+<tr>
+<th>Erreur</th>
+<th>Symptôme</th>
+<th>Correctif</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Tout faire avec <code>main</code></td>
+<td>Mémoire, canaux et outils mélangés.</td>
+<td>Agents séparés.</td>
+</tr>
+<tr>
+<td>Mettre des standing orders vagues</td>
+<td>L&#39;agent agit trop largement.</td>
+<td>Scope + triggers + gates + escalade.</td>
+</tr>
+<tr>
+<td>Confondre <code>/goal</code> et task queue</td>
+<td>Objectif bloqué ou mal repris.</td>
+<td>Cron / Task Flow pour le détaché.</td>
+</tr>
+<tr>
+<td>Heartbeat bavard</td>
+<td>Notifications inutiles, coût invisible.</td>
+<td><code>HEARTBEAT_OK</code>, checklist courte.</td>
+</tr>
+<tr>
+<td>Installer trop de skills</td>
+<td>Prompt bloat + injection.</td>
+<td>Allowlist, audit.</td>
+</tr>
+<tr>
+<td>Pas de sandbox</td>
+<td>L&#39;agent peut sortir du workspace.</td>
+<td><code>sandbox explain</code>, Docker/SSH/OpenShell.</td>
+</tr>
+<tr>
+<td>Polling sub-agents</td>
+<td>Coût et bruit.</td>
+<td>Completion push, inspecter seulement en debug.</td>
+</tr>
+<tr>
+<td>Cron sans modèle explicite</td>
+<td>Surprise de provider/fallback.</td>
+<td><code>--model</code>, <code>--fallbacks</code>, <code>doctor</code>.</td>
+</tr>
+<tr>
+<td>Boucle code sans worktree</td>
+<td>Conflits et diff sale.</td>
+<td><code>git worktree</code> par tâche.</td>
+</tr>
+<tr>
+<td>Boucle sans preuve</td>
+<td>“Ça devrait marcher.”</td>
+<td>Test/build/audit obligatoire.</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>OpenClaw vs Hermes vs Claude Code — lecture pratique</h2>
+<table>
+<thead>
+<tr>
+<th>Critère</th>
+<th>OpenClaw</th>
+<th>Hermes</th>
+<th>Claude Code</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Centre de gravité</td>
+<td>Assistant personnel multi-canaux</td>
+<td>Agent auto-améliorant / mémoire / skills</td>
+<td>Agent de code + SDK</td>
+</tr>
+<tr>
+<td>Déclenchement</td>
+<td>Gateway, cron, heartbeat, webhooks</td>
+<td>cron, <code>/goal</code>, kanban, profils</td>
+<td><code>/loop</code>, <code>/goal</code>, hooks, SDK</td>
+</tr>
+<tr>
+<td>Mémoire</td>
+<td>Markdown workspace + plugins mémoire</td>
+<td>mémoire profonde + skills évolutives</td>
+<td>fichiers projet + session SDK</td>
+</tr>
+<tr>
+<td>Multi-agent</td>
+<td>agents, bindings, sub-agents, ACP</td>
+<td>profils, sous-agents, kanban</td>
+<td>sub-agents / Task tool</td>
+</tr>
+<tr>
+<td>Code</td>
+<td>Possible, mais à structurer</td>
+<td>Possible, fort sur continuité</td>
+<td>Natif, le plus direct</td>
+</tr>
+<tr>
+<td>Canaux</td>
+<td>Très fort</td>
+<td>Fort</td>
+<td>Plutôt terminal / IDE / SDK</td>
+</tr>
+<tr>
+<td>Risque principal</td>
+<td>Trop de pouvoirs persistants</td>
+<td>Boucle qui s&#39;auto-convainc</td>
+<td>Coût + dette de compréhension</td>
+</tr>
+<tr>
+<td>Meilleur usage</td>
+<td>Assistant autonome local / ops perso</td>
+<td>Agent qui apprend tes routines</td>
+<td>Dev et CI sur repo</td>
+</tr>
+</tbody></table>
+<p><strong>Conclusion comparative</strong> :</p>
+<ul>
+<li>Pour piloter ta machine Ubuntu, des canaux, du cron, de la mémoire et des automatisations personnelles : <strong>OpenClaw</strong> est naturel.</li>
+<li>Pour faire émerger des skills et routines qui s&#39;améliorent avec l&#39;usage : <strong>Hermes</strong> est plus orienté apprentissage.</li>
+<li>Pour coder dans un dépôt avec vérifications fortes : <strong>Claude Code</strong> reste plus spécialisé.</li>
+</ul>
+<hr>
+<h2>Checklist de mise en place sur une machine Ubuntu locale</h2>
+<pre><code class="language-bash"># 1. Mettre à jour proprement
+openclaw update --dry-run
+openclaw update
+openclaw doctor
+openclaw gateway restart
+openclaw health
+
+# 2. Vérifier la config sensible
+openclaw config get agents.defaults.workspace
+openclaw config get agents.defaults.sandbox
+openclaw config get channels
+
+# 3. Vérifier sandbox
+openclaw sandbox explain
+openclaw sandbox list
+
+# 4. Créer les agents séparés
+openclaw agents list
+openclaw agents add work --workspace ~/.openclaw/workspace-work --non-interactive
+openclaw agents add ops --workspace ~/.openclaw/workspace-ops --non-interactive
+
+# 5. Créer les fichiers de boucle
+mkdir -p ~/.openclaw/workspace-work/skills/ci-triage
+$EDITOR ~/.openclaw/workspace-work/AGENTS.md
+$EDITOR ~/.openclaw/workspace-work/HEARTBEAT.md
+$EDITOR ~/.openclaw/workspace-work/STATE.md
+$EDITOR ~/.openclaw/workspace-work/skills/ci-triage/SKILL.md
+
+# 6. Ajouter un cron test, sans livraison
+openclaw cron create &quot;*/30 * * * *&quot; \
+  &quot;Test de boucle : lis STATE.md, ne modifie rien, réponds NO_REPLY si aucune action.&quot; \
+  --name &quot;Loop smoke test&quot; \
+  --agent work \
+  --session isolated \
+  --light-context \
+  --no-deliver
+
+# 7. Observer avant d'élargir
+openclaw cron list
+openclaw cron runs --id &lt;job-id&gt;
+openclaw tasks audit</code></pre>
+<hr>
+<h2>Conclusion</h2>
+<p>OpenClaw est probablement l&#39;un des meilleurs candidats pour des boucles <strong>personnelles, multi-canaux et persistantes</strong>. Mais ce n&#39;est pas parce qu&#39;un agent peut lire tes messages, lancer des commandes, retenir des choses et se réveiller tout seul qu&#39;il faut lui donner un mandat large.</p>
+<p>La bonne boucle OpenClaw est petite :</p>
+<ol>
+<li>un agent dédié ;</li>
+<li>un workspace dédié ;</li>
+<li>un <code>AGENTS.md</code> avec mandat borné ;</li>
+<li>une skill pour le processus ;</li>
+<li>un <code>STATE.md</code> lisible ;</li>
+<li>un déclencheur <code>cron</code> ou <code>heartbeat</code> ;</li>
+<li>une porte objective ;</li>
+<li>un sandbox ;</li>
+<li>une revue humaine avant action irréversible.</li>
+</ol>
+<p><strong>La formule courte :</strong></p>
+<blockquote>
+<p>OpenClaw n&#39;est pas une boucle de prompt. C&#39;est une boucle d&#39;autorité.<br>La question n&#39;est donc pas seulement “que peut-il faire ?”, mais “qu&#39;a-t-il le droit de faire sans moi ?”.</p>
+</blockquote>
+<hr>
+<h2>Sources consultées</h2>
+<ul>
+<li>OpenClaw repository — <a href="https://github.com/openclaw/openclaw">https://github.com/openclaw/openclaw</a></li>
+<li>OpenClaw releases — <a href="https://github.com/openclaw/openclaw/releases">https://github.com/openclaw/openclaw/releases</a></li>
+<li>Automation — <a href="https://docs.openclaw.ai/automation">https://docs.openclaw.ai/automation</a></li>
+<li>Scheduled tasks / cron — <a href="https://docs.openclaw.ai/automation/cron-jobs">https://docs.openclaw.ai/automation/cron-jobs</a></li>
+<li>Cron CLI — <a href="https://docs.openclaw.ai/cli/cron">https://docs.openclaw.ai/cli/cron</a></li>
+<li>Heartbeat — <a href="https://docs.openclaw.ai/gateway/heartbeat">https://docs.openclaw.ai/gateway/heartbeat</a></li>
+<li>Goal — <a href="https://docs.openclaw.ai/tools/goal">https://docs.openclaw.ai/tools/goal</a></li>
+<li>Background tasks — <a href="https://docs.openclaw.ai/automation/tasks">https://docs.openclaw.ai/automation/tasks</a></li>
+<li>Standing orders — <a href="https://docs.openclaw.ai/automation/standing-orders">https://docs.openclaw.ai/automation/standing-orders</a></li>
+<li>Skills — <a href="https://docs.openclaw.ai/tools/skills">https://docs.openclaw.ai/tools/skills</a></li>
+<li>Hooks — <a href="https://docs.openclaw.ai/automation/hooks">https://docs.openclaw.ai/automation/hooks</a></li>
+<li>Sub-agents — <a href="https://docs.openclaw.ai/tools/subagents">https://docs.openclaw.ai/tools/subagents</a></li>
+<li>Agent workspace — <a href="https://docs.openclaw.ai/concepts/agent-workspace">https://docs.openclaw.ai/concepts/agent-workspace</a></li>
+<li>Memory overview — <a href="https://docs.openclaw.ai/concepts/memory">https://docs.openclaw.ai/concepts/memory</a></li>
+<li>Sandbox CLI — <a href="https://docs.openclaw.ai/cli/sandbox">https://docs.openclaw.ai/cli/sandbox</a></li>
+<li>Agents CLI — <a href="https://docs.openclaw.ai/cli/agents">https://docs.openclaw.ai/cli/agents</a></li>
+<li>Tool Search — <a href="https://docs.openclaw.ai/tools/tool-search">https://docs.openclaw.ai/tools/tool-search</a></li>
+<li>Updating — <a href="https://docs.openclaw.ai/install/updating">https://docs.openclaw.ai/install/updating</a></li>
+</ul>
+
+        </main>
+    </div>
+
+    <script src="../script.js" defer></script>
+    <script src="../nav.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" defer crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" defer crossorigin="anonymous"></script>
+    <script src="../content-enhance.js" defer></script>
+</body>
+</html>

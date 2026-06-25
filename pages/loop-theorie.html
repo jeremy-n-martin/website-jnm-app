@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Les boucles — théorie — Jeremy N. Martin">
+    <meta name="theme-color" content="#ffe6f2">
+    <title>Les boucles — théorie — Jeremy N. Martin</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32x32.png">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+</head>
+<body>
+    <canvas id="plexus-canvas" aria-hidden="true"></canvas>
+    <div class="containermain">
+        <header class="site-header">
+            <a href="../index.html" class="site-title">Jeremy N. Martin</a>
+            <nav class="site-nav" id="site-nav" data-depth="1" aria-label="Navigation principale"></nav>
+        </header>
+        <main class="prose">
+            <p>La plupart des développeurs pilotent encore leurs agents de code à la main : taper, attendre, lire le diff, retaper. Le levier a changé — il ne s&#39;agit plus d&#39;écrire de meilleurs prompts, mais de concevoir des <strong>systèmes qui promptent à votre place</strong>.</p>
+<p><strong>14 étapes, 3 niveaux</strong> : vérifier si vous avez besoin d&#39;une boucle, comprendre ce qui se passe sous le capot, maîtriser les cinq blocs de base, puis construire la plus petite boucle viable.</p>
+<p><strong>Boucle agentique (niveau produit)</strong> — Système qui trouve le travail, le confie à l&#39;agent, vérifie, enregistre l&#39;état et décide de la suite, souvent sur un planning.</p>
+<p><strong>Boucle d&#39;exécution (niveau agent)</strong> — Cycle interne d&#39;une session : l&#39;agent évalue, appelle des outils, reçoit les résultats, recommence jusqu&#39;à produire une réponse finale ou atteindre une limite. C&#39;est ce moteur que les automations et les SDK réutilisent.</p>
+<div class="mermaid">flowchart LR
+
+%% -------------------------
+%% Ce que fait une boucle
+%% -------------------------
+
+A1[AUTOMATIONS]
+A2[WORKTREES]
+A3[SKILLS]
+A4[CONNECTEURS]
+A5[SOUS-AGENTS]
+A6[FICHIER D'ÉTAT]
+
+class A6 activeTab
+
+W1["**Trouver le travail**<br/><i>La boucle identifie<br/>quoi faire</i>"]
+W2["**Confier à l'agent**<br/><i>Tâche bornée,<br/>bon contexte</i>"]
+W3["**Vérifier le résultat**<br/><i>Tests, typage,<br/>build en échec</i>"]
+W4["**Enregistrer**<br/><i>L'état survit<br/>entre les runs</i>"]
+W5["**Décider la suite**<br/><i>Stop, retry<br/>ou relais humain</i>"]
+
+W1 --> W2 --> W3 --> W4 --> W5
+
+W5 -. "SUITE" .-> W1
+
+S["■ **Fichier d'état** &nbsp;&nbsp; <i>L'agent oublie à chaque run. Le fichier, non.</i>"]
+
+W3 -.-> S
+W4 -.-> S
+W5 -.-> S
+
+classDef activeTab fill:#fff,stroke:#e85d2a,stroke-width:1.5px,color:#000;
+classDef box fill:#fff,stroke:#555,stroke-width:1px,color:#000;
+classDef state fill:#fff,stroke:#555,stroke-width:1px,color:#000;
+classDef note color:#e85d2a,stroke:#e85d2a;
+
+class A1,A2,A3,A4,A5,W1,W2,W3,W4,W5 box;
+class S state;</div>
+<hr>
+<h2>PARTIE 1 · Le pourquoi et le test</h2>
+<h3>01. L&#39;ingénierie de boucle remplace le prompteur manuel</h3>
+<p>Pendant longtemps, travailler avec un agent de code signifiait : écrire un prompt, partager le contexte, lire la réponse, écrire le suivant. Vous teniez l&#39;outil du début à la fin. Cette phase touche à sa fin.</p>
+<p><strong>L&#39;ingénierie de boucle</strong>, c&#39;est construire un petit système qui trouve le travail, le confie à l&#39;agent, vérifie le résultat, enregistre ce qui s&#39;est passé et décide de la suite — <strong>de façon autonome</strong>. Vous concevez ce système une fois ; ensuite, c&#39;est lui qui prompte l&#39;agent.</p>
+<p>Six briques élémentaires :</p>
+<table>
+<thead>
+<tr>
+<th>Brique</th>
+<th>Rôle dans la boucle</th>
+<th>Codex</th>
+<th>Claude Code</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Automations</td>
+<td>découverte + triage planifié</td>
+<td>Onglet Automations : projet, prompt, cadence, environnement ; résultats dans une boîte Triage ; <code>/goal</code> pour tourner jusqu&#39;à la fin</td>
+<td>Tâches planifiées et cron, <code>/loop</code>, <code>/goal</code>, hooks, GitHub Actions</td>
+</tr>
+<tr>
+<td>Worktrees</td>
+<td>isoler des features en parallèle</td>
+<td>Worktree intégré par fil de discussion</td>
+<td><code>git worktree</code>, <code>--worktree</code>, isolation worktree sur un sous-agent</td>
+</tr>
+<tr>
+<td>Skills</td>
+<td>codifier la connaissance projet</td>
+<td>Agent Skills (<code>SKILL.md</code>), invoqués avec <code>$name</code> ou implicitement</td>
+<td>Agent Skills (<code>SKILL.md</code>)</td>
+</tr>
+<tr>
+<td>Plugins / connecteurs</td>
+<td>relier vos outils</td>
+<td>Connecteurs (MCP) + plugins</td>
+<td>Serveurs MCP + plugins</td>
+</tr>
+<tr>
+<td>Sous-agents</td>
+<td>explorer et vérifier</td>
+<td>Sous-agents en TOML dans <code>.codex/agents/</code></td>
+<td>Sous-agents Task dans <code>.claude/agents/</code>, équipes d&#39;agents</td>
+</tr>
+<tr>
+<td>État</td>
+<td>suivre ce qui est fait</td>
+<td>Markdown ou Linear via connecteur</td>
+<td>Markdown (<code>CLAUDE.md</code>, <code>STATE.md</code>, <code>AGENTS.md</code>) ou Linear via MCP ; SDK : <code>session_id</code> pour reprendre</td>
+</tr>
+</tbody></table>
+<p>Le levier s&#39;est déplacé : de la saisie de prompts à la conception de la boucle qui prompte.</p>
+<h3>02. Passer le test des 4 conditions avant de construire</h3>
+<p>Une boucle ne vaut son coût que si <strong>les quatre conditions</strong> ci-dessous sont remplies. En manquer une, et elle coûte plus qu&#39;elle ne rapporte.</p>
+<div class="mermaid">flowchart LR
+    T["En avez-vous vraiment besoin ?"]
+
+    A["01<br/><b>La tâche<br/>se répète</b><br/><i>Au moins une fois<br/>par semaine</i>"]
+    B["02<br/><b>La vérification<br/>est automatisée</b><br/><i>Tests, typage,<br/>build, linter</i>"]
+    C["03<br/><b>Le budget tokens<br/>absorbe le gaspillage</b><br/><i>Les retries coûtent<br/>même sans livraison</i>"]
+    D["04<br/><b>L'agent a les outils<br/>d'un senior</b><br/><i>Logs, env de repro,<br/>exécuter le code</i>"]
+    E["<b>Oui aux quatre</b><br/><br/><code>OK</code>"]
+    F["<b>Construire<br/>la boucle</b>"]
+
+    M1["<b>Une case manquante</b>"]
+    M2["<b>Prompt manuel</b>"]
+
+    T --- A
+    A --> B --> C --> D --> E --> F
+
+    A -.-> M1
+    B -.-> M1
+    C -.-> M2
+    D -.-> M2
+    M1 --- M2
+
+    L1["━━ PLEIN = toutes les conditions OK<br/>┄┄ POINTILLÉ = rester en manuel"]
+    N["Lancer le test avant de construire."]
+
+    classDef box fill:#fff,stroke:#222,color:#000;
+    classDef final fill:#111,stroke:#111,color:#f15a24;
+    classDef note fill:#fff,stroke:#999,color:#555;
+    classDef title fill:#fff,stroke:#fff,color:#000;
+
+    class A,B,C,D,E,M1,M2 box;
+    class F final;
+    class L1,N note;
+    class T title;</div>
+<p><strong>Les quatre conditions, en clair :</strong></p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Condition</th>
+<th>Pourquoi</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td><strong>La tâche se répète</strong></td>
+<td>Une boucle amortit son coût de mise en place sur de nombreux runs. Pour un travail ponctuel, un bon prompt suffit.</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>La vérification est automatisée</strong></td>
+<td>Il faut un signal objectif qui peut rejeter le travail sans vous. Sans ça, vous relisez chaque diff — le travail que la boucle devait éliminer.</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>Le budget tokens absorbe le gaspillage</strong></td>
+<td>Les boucles relisent le contexte, retentent, explorent. Ça consomme des tokens même quand rien n&#39;est livré.</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>L&#39;agent a les outils d&#39;un ingénieur senior</strong></td>
+<td>Logs, environnement de reproduction, capacité à exécuter le code et voir ce qui casse. Sans ça, la boucle itère à l&#39;aveugle.</td>
+</tr>
+</tbody></table>
+<h3>03. Qui gagne, qui perd</h3>
+<p>Les boucles favorisent ceux qui peuvent <strong>dépenser</strong> en tokens et en revue.</p>
+<p><strong>Qui en profite en pratique :</strong></p>
+<ul>
+<li>Équipes avec travail répétitif et vérifiable par machine — triage CI, mises à jour de dépendances, passes lint-and-fix, brouillons issue→PR sur une base bien testée</li>
+<li>Codebases avec une suite de tests solide : si un junior pourrait faire la tâche avec une checklist et que les tests attrapent les erreurs, une boucle convient</li>
+<li>Équipes async déjà familières du multi-agent : les routines sont la couche d&#39;orchestration manquante</li>
+</ul>
+<p><strong>Qui devrait s&#39;en passer, pour l&#39;instant :</strong></p>
+<ul>
+<li>Développeurs solo sur forfait consommateur — la facture arrive avant le gain de productivité</li>
+<li>Code sans vérification automatisée — une boucle sans vrai contrôle, c&#39;est l&#39;agent qui s&#39;auto-valide en boucle</li>
+<li>Équipes dont le goulot est la <strong>revue</strong>, pas la saisie — une boucle génère plus de code et allonge la file d&#39;attente</li>
+</ul>
+<p>Pour les tâches ponctuelles, l&#39;exploration ou tout ce où « terminé » est un jugement humain, un prompt bien ciblé reste supérieur.</p>
+<p><strong>Version honnête</strong> : l&#39;ingénierie de boucle est réelle, mais la plupart des développeurs n&#39;en ont pas encore besoin.</p>
+<h3>04. Le contrôle rapide en 30 secondes</h3>
+<p>Le test des 4 conditions (étape 2) est la décision stratégique. Voici la checklist tactique pour une tâche précise avant de la transformer en boucle.</p>
+<ol>
+<li>La tâche arrive <strong>au moins une fois par semaine</strong>. Moins souvent → le coût de setup ne s&#39;amortit jamais.</li>
+<li>Un test, un typage, un build ou un linter peut <strong>rejeter</strong> une mauvaise sortie. Sans porte automatisée → l&#39;agent corrige ses propres devoirs.</li>
+<li>L&#39;agent peut <strong>exécuter</strong> le code qu&#39;il modifie. Sans environnement de reproduction → itération aveugle.</li>
+<li>La boucle a un <strong>arrêt forcé</strong> : plafond de tours, plafond de budget, budget tokens, ou limite de temps. Sans plafond, une session ouverte peut brûler 5–10× le budget prévu.</li>
+<li>Un humain <strong>revoit</strong> avant merge, déploiement ou changement de dépendance. Tout ce qui est irréversible exige une validation humaine.</li>
+</ol>
+<div class="mermaid">flowchart LR
+    P["Votre prompt"] --> G["Rassembler le contexte"]
+
+    subgraph L["boucle agentique"]
+        direction LR
+        G --> A["Agir"]
+        A --> V["Vérifier"]
+        V --> G
+    end
+
+    V --> D["Terminé"]
+
+    I["Vous : interrompre, orienter<br/>ou ajouter du contexte"] -.-> A
+
+    classDef input fill:#eeeeee,stroke:#eeeeee,color:#111;
+    classDef loopNode fill:#cfe5d8,stroke:#cfe5d8,color:#1b2a22,font-weight:bold;
+    classDef done fill:#eeeeee,stroke:#eeeeee,color:#111;
+    classDef user fill:#fff7f2,stroke:#f0a06f,color:#111;
+
+    class P input;
+    class G,A,V loopNode;
+    class D done;
+    class I user;
+
+    style L fill:#ffffff,stroke:#dddddd,stroke-dasharray:6 6,color:#888;
+
+    linkStyle 3 stroke:#9cccaa,stroke-width:2px;
+    linkStyle 5 stroke:#e6a174,stroke-width:1.5px,stroke-dasharray:5 5;</div>
+<p><strong>Bonnes premières boucles :</strong></p>
+<p><strong>CI</strong> (Continuous Integration) — Pipeline qui exécute tests, build et vérifications à chaque changement de code.</p>
+<table>
+<thead>
+<tr>
+<th>Boucle</th>
+<th>Cadence</th>
+<th>Action</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Triage des échecs CI</td>
+<td>nocturne</td>
+<td>Scanner les échecs, classifier, brouillonner des PR pour les cas simples</td>
+</tr>
+<tr>
+<td>PR de bump de dépendances</td>
+<td>hebdomadaire</td>
+<td>Scanner les mises à jour, tester, ouvrir des PR</td>
+</tr>
+<tr>
+<td>Passes lint-and-fix</td>
+<td>à chaque ouverture de PR</td>
+<td>Corriger le style automatiquement</td>
+</tr>
+<tr>
+<td>Reproduction de tests flaky</td>
+<td>en boucle</td>
+<td>Itérer jusqu&#39;à ce qu&#39;une théorie survive au test</td>
+</tr>
+<tr>
+<td>Brouillons issue→PR</td>
+<td>sur code bien testé</td>
+<td>La suite rejette les mauvaises sorties</td>
+</tr>
+</tbody></table>
+<p><strong>Mauvaises premières boucles</strong> (humain requis) :</p>
+<ul>
+<li>Réécritures d&#39;architecture</li>
+<li>Code auth ou paiements</li>
+<li>Déploiements en production</li>
+<li>Travail produit vague</li>
+<li>Tout ce où « terminé » est un jugement</li>
+</ul>
+<hr>
+<h2>PARTIE 2 · Les 5 blocs de construction</h2>
+<p>Une boucle durable ne vit pas dans le chat — elle s&#39;appuie sur des <strong>fichiers versionnés</strong> dans le dépôt. Avant d&#39;automatiser, structurez l&#39;espace projet : c&#39;est le classeur d&#39;onboarding que chaque run relit.</p>
+<h3>Prompt, projet ou skill ?</h3>
+<p>Trois niveaux de persistance — du plus éphémère au plus structuré. Une boucle mature combine <strong>projet</strong> (contexte de base) + <strong>skills</strong> (processus répétitifs) ; le prompt seul ne suffit pas.</p>
+<table>
+<thead>
+<tr>
+<th>Critère</th>
+<th>Prompt</th>
+<th>Projet (fichiers versionnés)</th>
+<th>Skills</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Idée générale</strong></td>
+<td>Instructions données à chaque conversation.</td>
+<td>Espace projet avec fichiers et instructions persistantes.</td>
+<td>Processus enseigné une fois, réutilisable automatiquement.</td>
+</tr>
+<tr>
+<td><strong>Où ça vit</strong></td>
+<td>Dans le chat ou la session courante.</td>
+<td>Dans le dépôt : fichier racine, dossier de config agent, versionné.</td>
+<td><code>SKILL.md</code> dans un dossier dédié, chargé à la demande.</td>
+</tr>
+<tr>
+<td><strong>Mise en place</strong></td>
+<td>Aucune — vous tapez directement.</td>
+<td>~5 min : créer les fichiers projet de base.</td>
+<td>~15 min : rédiger la skill, tester, committer.</td>
+</tr>
+<tr>
+<td><strong>Mémoire / contexte</strong></td>
+<td>Rien ne persiste entre les sessions.</td>
+<td>Instructions et fichiers relus à chaque requête (mis en cache).</td>
+<td>Description courte toujours visible ; contenu complet à l&#39;invocation.</td>
+</tr>
+<tr>
+<td><strong>Automatisation</strong></td>
+<td>Non — vous répétez les consignes.</td>
+<td>Non — il faut lancer la session dans le bon dépôt.</td>
+<td>Oui — l&#39;agent reconnaît la tâche et invoque la skill.</td>
+</tr>
+<tr>
+<td><strong>Workflow</strong></td>
+<td>Vous redonnez les étapes à chaque fois.</td>
+<td>Étapes stockées dans les fichiers projet ou les règles.</td>
+<td>Workflow intégré étape par étape dans la skill.</td>
+</tr>
+<tr>
+<td><strong>Qualité de sortie</strong></td>
+<td>Variable, dépend du prompt du moment.</td>
+<td>Plus constante — contexte projet stable.</td>
+<td>Très constante sur les tâches répétitives.</td>
+</tr>
+<tr>
+<td><strong>Économie de tokens</strong></td>
+<td>Faible — longs prompts à chaque fois.</td>
+<td>Moyenne — vous évitez de tout répéter.</td>
+<td>Bonne — seul le nécessaire est chargé.</td>
+</tr>
+<tr>
+<td><strong>Meilleur usage</strong></td>
+<td>Tâches rapides, ponctuelles.</td>
+<td>Sessions longues, style, architecture, mémoire projet.</td>
+<td>Processus structurés que vous refaites souvent (triage CI, deploy, review).</td>
+</tr>
+<tr>
+<td><strong>Image mentale</strong></td>
+<td>Expliquer chaque matin votre travail à un inconnu.</td>
+<td>Donner un classeur d&#39;onboarding à un nouvel employé.</td>
+<td>Former un employé une fois pour qu&#39;il applique toujours le processus.</td>
+</tr>
+<tr>
+<td><strong>Dans une boucle</strong></td>
+<td>Suffit pour un run manuel ponctuel.</td>
+<td>Socle obligatoire — état + spec + permissions.</td>
+<td>Cœur du run automatisé — c&#39;est la skill qui encode le processus.</td>
+</tr>
+</tbody></table>
+<p>Pour une boucle viable (étape 11) : fichier projet pour le socle, une skill pour le workflow, fichier d&#39;état, hooks de fin de session pour persister entre les runs.</p>
+<h3>05. Automations : le battement de cœur</h3>
+<p>Les automations transforment une exécution unique en <strong>vraie boucle</strong>. Elles se déclenchent sur un planning, un événement ou une condition. Tout le reste s&#39;accroche à elles.</p>
+<p><strong>Dans les deux outils principaux :</strong></p>
+<table>
+<thead>
+<tr>
+<th>Outil</th>
+<th>Mécanisme</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Codex</strong></td>
+<td>Onglet Automations : projet, prompt, cadence, checkout local ou worktree en arrière-plan. Les runs utiles arrivent dans Triage ; les runs vides s&#39;archivent seuls.</td>
+</tr>
+<tr>
+<td><strong>Claude Code</strong></td>
+<td>Boucles en session, tâches planifiées Desktop, Routines cloud. Les hooks couvrent le cycle de vie : fin de session → écrire l&#39;état, avant outil → bloquer une commande.</td>
+</tr>
+</tbody></table>
+<p>Deux primitives à distinguer :</p>
+<ul>
+<li><strong>Boucle planifiée</strong> — relance sur une cadence. Pour des vérifications régulières, quel que soit l&#39;état.</li>
+<li><strong>Boucle à objectif</strong> — continue jusqu&#39;à ce qu&#39;une condition écrite soit <strong>vraiment</strong> vraie. Un petit modèle séparé vérifie la complétion : celui qui a écrit le code ne le note pas.</li>
+</ul>
+<div class="mermaid">flowchart LR
+    A[Vous promptez] --> B[Agent travaille]
+    B --> C[Agent s'arrête]
+    C --> D[Vous relisez]
+    D --> E[Vous repromptez]
+    E --> F[Agent travaille]
+    F --> G[Agent s'arrête]
+    G --> H[Vous relisez encore]
+
+    N["Vous êtes le goulot. Chaque tour exige votre intervention."]
+
+    D --> E</div>
+<div class="mermaid">flowchart LR
+    A[Vous fixez l'objectif] --> B[Agent travaille]
+    B --> C[L'évaluateur vérifie]
+
+    C -- "Fait ✓" --> D[Objectif atteint]
+    C -- "Pas fait" --> E[Agent reprend]
+    E --> B
+
+    N["Vous sortez de la boucle. L'agent travaille jusqu'à la condition."]</div>
+<p>C&#39;est la séparation <strong>faiseur / contrôleur</strong>, appliquée à la condition d&#39;arrêt elle-même.</p>
+<h3>06. Worktrees : du parallèle sans chaos</h3>
+<p>Dès que deux agents travaillent en même temps, les fichiers entrent en collision. Un <strong>git worktree</strong> règle ça : répertoire de travail séparé sur sa propre branche, même historique de dépôt — les modifications d&#39;un agent ne touchent pas le checkout de l&#39;autre.</p>
+<div class="mermaid">flowchart LR
+    Repo["📁<br/>Dépôt"]
+
+    subgraph GitWorktrees["Git Worktrees"]
+        direction LR
+
+        subgraph MainWT[" "]
+            direction TB
+            MainFolder["📁<br/>../main"]
+
+            subgraph MainBox[" "]
+                direction LR
+                MainLabel["✓ main"]
+
+                subgraph MainHistory[" "]
+                    direction TB
+                    M1((" "))
+                    M2((" "))
+                    M1 --- M2
+                end
+
+                MainLabel ~~~ MainHistory
+            end
+
+            MainFolder ~~~ MainBox
+        end
+
+        subgraph FeatureAWT[" "]
+            direction TB
+            FeatureAFolder["📁<br/>../feature-a"]
+
+            subgraph FeatureABox[" "]
+                direction LR
+                FeatureALabel["✓ feature-a"]
+
+                subgraph FeatureAHistory[" "]
+                    direction TB
+                    A1((" "))
+                    A2((" "))
+                    A1 --- A2
+                end
+
+                FeatureALabel ~~~ FeatureAHistory
+            end
+
+            FeatureAFolder ~~~ FeatureABox
+        end
+
+        subgraph FeatureBWT[" "]
+            direction TB
+            FeatureBFolder["📁<br/>../feature-b"]
+
+            subgraph FeatureBBox[" "]
+                direction LR
+                FeatureBLabel["✓ feature-b"]
+
+                subgraph FeatureBHistory[" "]
+                    direction TB
+                    B1((" "))
+                    B2((" "))
+                    B3((" "))
+                    B1 --- B2 --- B3
+                end
+
+                FeatureBLabel ~~~ FeatureBHistory
+            end
+
+            FeatureBFolder ~~~ FeatureBBox
+        end
+    end
+
+    Repo -->|branche main| MainFolder
+    Repo -.->|branche feature-a| FeatureAFolder
+    Repo -.->|branche feature-b| FeatureBFolder
+
+    style MainBox fill:#dff1ff,stroke:#333,stroke-width:1px
+    style FeatureABox fill:#dcf7ec,stroke:#333,stroke-width:1px
+    style FeatureBBox fill:#fff8dc,stroke:#333,stroke-width:1px
+
+    style MainLabel fill:#bfe3ff,stroke:#333
+    style FeatureALabel fill:#bdf2dc,stroke:#333
+    style FeatureBLabel fill:#fff0a8,stroke:#333
+
+    style MainWT fill:transparent,stroke:transparent
+    style FeatureAWT fill:transparent,stroke:transparent
+    style FeatureBWT fill:transparent,stroke:transparent
+
+    style MainHistory fill:transparent,stroke:transparent
+    style FeatureAHistory fill:transparent,stroke:transparent
+    style FeatureBHistory fill:transparent,stroke:transparent
+
+    style M1 fill:#8fd0ff,stroke:#333
+    style M2 fill:#8fd0ff,stroke:#333
+    style A1 fill:#73d7b3,stroke:#333
+    style A2 fill:#73d7b3,stroke:#333
+    style B1 fill:#f6dc67,stroke:#333
+    style B2 fill:#f6dc67,stroke:#333
+    style B3 fill:#f6dc67,stroke:#333</div>
+<table>
+<thead>
+<tr>
+<th>Outil</th>
+<th>Support worktree</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Codex</strong></td>
+<td>Worktree intégré — plusieurs fils sur le même dépôt sans collision</td>
+</tr>
+<tr>
+<td><strong>Claude Code</strong></td>
+<td><code>git worktree</code>, flag <code>--worktree</code>, isolation worktree sur les sous-agents</td>
+</tr>
+</tbody></table>
+<p>Les worktrees éliminent les collisions mécaniques, mais <strong>votre bande passante de revue</strong> fixe le plafond du parallélisme réel.</p>
+<h3>07. Skills : écrire la connaissance projet une fois</h3>
+<p>Un <strong>Skill</strong> évite de réexpliquer le même contexte à chaque session. Format : instructions + métadonnées, scripts, références et assets optionnels.</p>
+<p>Pour les boucles, c&#39;est crucial : sans skills ni fichier projet, chaque cycle redérive tout le contexte depuis zéro — et la compaction peut effacer les instructions données uniquement dans le chat. Avec skills et fichiers projet, l&#39;intention <strong>s&#39;accumule</strong> : conventions, étapes de build, pièges connus, écrits une fois, relus à chaque requête.</p>
+<pre><code>name: ci-triage
+description: Classifier les échecs CI par cause (env, flake, bug réel,
+  dépendance, infra), brouillonner les correctifs simples, escalader le reste.
+  Déclenché à chaque échec de workflow ou lors de la boucle de triage matinale.
+---
+
+# Skill CI triage
+
+## Règles de classification
+- env : secret manquant, mauvaise variable, infra non provisionnée → humain
+- flake : passe au retry sans changement de code → retry une fois, puis dossier
+- bug : échec déterministe lié à un commit récent → brouillon de correctif
+- dependency : échec lié à un bump de version → brouillon de rollback
+- infra : timeout, OOM, problème de runner → escalade
+
+## Interdits
+- Désactiver des tests en échec — toujours escalader
+- Modifier la config CI sans approbation humaine
+
+## État
+Mettre à jour le fichier d'état après chaque run : fichiers vérifiés, classifications,
+PR ouvertes, éléments escaladés.</code></pre>
+<p><strong>E2E</strong> (End-to-End) — Tests qui simulent un parcours utilisateur complet, souvent via navigateur automatisé.</p>
+<p><strong>OOM</strong> (Out Of Memory) — Épuisement de la mémoire du runner CI ; symptôme typique d&#39;un problème d&#39;infrastructure, pas de code.</p>
+<h3>08. Connecteurs : la boucle touche vos vrais outils</h3>
+<p>Une boucle limitée au système de fichiers reste minuscule. Les <strong>connecteurs</strong>, basés sur le <strong>MCP</strong>, permettent à l&#39;agent de lire votre gestionnaire de tickets, interroger une base, appeler une API de staging ou poster sur Slack.</p>
+<p><strong>MCP</strong> (Model Context Protocol) — Protocole standard pour brancher un agent IA sur des outils externes : dépôts Git, trackers, messagerie, bases de données, etc. Codex et Claude Code parlent tous deux MCP : un connecteur écrit pour l&#39;un fonctionne souvent dans l&#39;autre.</p>
+<p><strong>PR</strong> (Pull Request) — Demande de fusion de code soumise à revue avant intégration dans la branche principale.</p>
+<p><strong>Connecteurs les plus rentables pour les boucles</strong>, par ordre :</p>
+<table>
+<thead>
+<tr>
+<th>Connecteur</th>
+<th>Usage typique</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>GitHub</strong></td>
+<td>Lire les dépôts, créer des branches, ouvrir des PR, commenter, réagir aux webhooks — le plus gros gain jour 1</td>
+</tr>
+<tr>
+<td><strong>Linear / Jira</strong></td>
+<td>Mettre à jour les tickets, lier les PR, fermer automatiquement quand la vérif passe</td>
+</tr>
+<tr>
+<td><strong>Slack</strong></td>
+<td>Poster les résultats de triage, alerter sur les escalades, résumer les runs nocturnes</td>
+</tr>
+<tr>
+<td><strong>Sentry</strong> (ou équivalent)</td>
+<td>Investiguer les alertes live, brouillonner des correctifs pour les erreurs fréquentes</td>
+</tr>
+</tbody></table>
+<p>Chaque serveur MCP ajoute des schémas d&#39;outils au contexte. Limitez le nombre de serveurs et d&#39;outils exposés — un excès peut consommer la fenêtre de contexte avant que l&#39;agent n&#39;ait agi.</p>
+<h3>09. Sous-agents : séparer le faiseur du contrôleur</h3>
+<p>La structure la plus utile dans une boucle : <strong>séparer l&#39;agent qui écrit de celui qui vérifie</strong>.</p>
+<p>Le modèle qui a écrit le code est « bien trop indulgent pour corriger ses propres devoirs ». Un second agent, avec d&#39;autres instructions et parfois un autre modèle, attrape ce que le premier s&#39;est convaincu d&#39;accepter.</p>
+<div class="mermaid">flowchart LR
+    I((Entrée)) --> G[Appel LLM<br/>Générateur]
+    G -->|Solution| E[Appel LLM<br/>Évaluateur]
+    E -->|Accepté| O((Sortie))
+    E -->|Rejeté +<br/>feedback| G
+
+    classDef io fill:#fff7f4,stroke:#f0b9aa,color:#e36f55;
+    classDef llm fill:#edf8e8,stroke:#b7d7a8,color:#5b9b45;
+
+    class I,O io;
+    class G,E llm;</div>
+<p>C&#39;est le pattern <strong>générateur / évaluateur</strong> : un modèle produit, l&#39;autre critique, on recommence.</p>
+<p><strong>LLM</strong> (Large Language Model) — Modèle de langage à grande échelle, cœur des agents de code (Claude, GPT, etc.).</p>
+<table>
+<thead>
+<tr>
+<th>Outil</th>
+<th>Sous-agents</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Codex</strong></td>
+<td>Sous-agents sur demande, en parallèle, résultats fusionnés. Définis en TOML dans <code>.codex/agents/</code> : nom, description, instructions, modèle et effort de raisonnement optionnels.</td>
+</tr>
+<tr>
+<td><strong>Claude Code / SDK</strong></td>
+<td>Sous-agents dans <code>.claude/agents/</code> ou via l&#39;outil <code>Agent</code>. Chaque sous-agent démarre avec un <strong>contexte frais</strong> : pas l&#39;historique du parent, seul son résumé final remonte — idéal pour garder la boucle principale légère.</td>
+</tr>
+</tbody></table>
+<p><strong>Répartition habituelle</strong> : un explore, un implémente, un vérifie contre la spec.</p>
+<p>Dans une boucle non surveillée, un vérificateur de confiance est la seule raison de pouvoir s&#39;éloigner. Les sous-agents consomment plus de tokens — dépensez-les là où un second avis vaut le coût, pas pour du travail que la recherche de fichiers suffit à faire.</p>
+<hr>
+<h2>PARTIE 3 · Bien construire ou ne pas construire</h2>
+<h3>10. Le fichier d&#39;état</h3>
+<p>L&#39;agent oublie. Le fichier, non. C&#39;est la colonne vertébrale de toute boucle qui fonctionne : un fichier Markdown, un board Linear, un JSON — tout ce qui vit <strong>hors</strong> de la conversation et retient ce qui est fait et ce qui reste.</p>
+<p><strong>Pourquoi c&#39;est essentiel :</strong> la mémoire de session disparaît demain sauf si vous l&#39;écrivez. La compaction résume l&#39;historique ancien — les détails précis du tour 3 ne survivent pas au tour 47. Sans état persistant hors conversation, chaque run repart de zéro ; avec un fichier d&#39;état (ou Linear), la boucle <strong>reprend</strong>.</p>
+<pre><code># État de boucle · ci-triage
+
+## Dernier run
+2026-06-09 03:30 UTC · 7 échecs classifiés, 3 correctifs brouillonnés, 4 escaladés
+
+## En cours
+- fix-auth-token-refresh — tests OK en local, en attente CI
+- fix-flaky-payment-webhook — pattern de retry appliqué, surveillance
+
+## Terminé aujourd'hui
+- bump-axios-1.7.4 → mergé (CI verte, boucle deps vérifiée)
+- lint-fix-pass-june-9 → mergé
+
+## Escaladé aux humains
+- src/billing/refund.ts — tests en échec de 3 façons, cause racine floue
+- ci/staging-runner — timeouts infra, pas un problème de code
+
+## Leçons apprises (écrire ici, pas dans le chat)
+- 2026-06-08 : PowerShell pose un souci TLS 1.2 sur ce runner Windows. Utiliser bash.
+- 2026-06-07 : tests/e2e/checkout exige le secret webhook Stripe en env. Ignorer si absent.
+
+## Conditions d'arrêt atteintes depuis la dernière revue
+- objectif « tous les tests passent + lint propre » atteint au commit 3a7b8c1 à 02:14 UTC</code></pre>
+<p><strong>Deux emplacements possibles :</strong></p>
+<table>
+<thead>
+<tr>
+<th>Emplacement</th>
+<th>Avantages</th>
+<th>Idéal pour</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Markdown dans le dépôt (<code>STATE.md</code>, dossier agent)</td>
+<td>versionné, simple, lisible en diff</td>
+<td>solo ou petite équipe</td>
+</tr>
+<tr>
+<td>Système externe (Linear, GitHub Issues, base)</td>
+<td>survit aux dépôts, requêtable, visible par l&#39;équipe</td>
+<td>boucles de production multi-humains</td>
+</tr>
+</tbody></table>
+<p>Pour les boucles longues à risque de dérive, associez l&#39;état à une spec de haut niveau (<code>VISION.md</code>, <code>AGENTS.md</code>) relue à chaque run. L&#39;état dit <strong>où</strong> on est ; la spec dit <strong>où</strong> aller.</p>
+<h3>11. La boucle viable minimale</h3>
+<p>Si vous avez passé le test des 4 conditions, construisez la <strong>plus petite</strong> boucle qui marche. Quatre parties, pas de essaim.</p>
+<div class="mermaid">flowchart TB
+
+    T["La boucle viable minimale"]
+    ST["QUATRE PARTIES, PAS D'ESSAIM"]
+
+    T --> ST
+
+    subgraph L[" "]
+        direction LR
+
+        A["01<br/><b>Une automation</b><br/><br/><i>Run planifié, cadence,<br/>condition d'arrêt</i>"]
+
+        B["02<br/><b>Un skill</b><br/><br/><i>Contexte projet que l'agent<br/>redériverait sinon</i><br/><br/><code>SKILL.md</code>"]
+
+        C["03<br/><b>Un fichier d'état</b><br/><br/><i>Ce qui est fait et<br/>ce qui reste</i><br/><br/><code>Markdown / Linear</code>"]
+
+        D["04<br/><b>Une porte</b><br/><br/><i>Test, typage ou build<br/>rejette le mauvais travail</i><br/><br/><code>PEUT DIRE NON</code>"]
+
+        A --> B --> C --> D
+    end
+
+    D --> N
+    N --> A
+
+    N["PROCHAIN RUN<br/><br/>Un run manuel fiable → skill → boucle → planification."]
+
+    subgraph M[" "]
+        direction LR
+        M0["📊<br/><b>Coût par changement accepté</b><br/><i>pas les tokens sur les tentatives</i>"]
+        M1["<b>COÛT / ACCEPTÉ</b><br/>12,37 €"]
+        M2["<b>ACCEPTÉS</b><br/>128"]
+        M3["<b>TAUX DE REJET</b><br/>17 %"]
+        M4["<b>MTTA (MIN)</b><br/>14,2"]
+        M5["<b>DÉLAI (H)</b><br/>6,8"]
+    end</div>
+<p><strong>Les quatre parties :</strong></p>
+<ol>
+<li><strong>Une automation</strong> — run planifié, cadence, condition d&#39;arrêt claire.</li>
+<li><strong>Un skill</strong> — un <code>SKILL.md</code> + fichier projet avec le contexte que l&#39;agent redériverait à chaque fois.</li>
+<li><strong>Un fichier d&#39;état</strong> — Markdown ou Linear : le run de demain reprend au lieu de recommencer.</li>
+<li><strong>Une porte</strong> — test, typage ou build qui rejette automatiquement le mauvais travail.</li>
+</ol>
+<p><strong>L&#39;ordre compte</strong> : run manuel fiable → skill → boucle → planification. Sauter des étapes, c&#39;est payer pour un système que personne ne comprend.</p>
+<p><strong>MTTA</strong> (Mean Time To Acknowledge) — Temps moyen pour prendre en compte un élément (ici, un changement proposé par la boucle).</p>
+<p><strong>La métrique qui compte</strong> : coût par changement <strong>accepté</strong> — pas les tokens dépensés, pas les tâches tentées. Si le taux d&#39;acceptation est sous 50 %, vous faites la revue que la boucle prétendait éviter, et elle perd.</p>
+<h3>12. La boucle Ralph Wiggum — échecs silencieux</h3>
+<p>Nom donné à un mode d&#39;échec classique : l&#39;agent déclare la tâche terminée trop tôt (succès alors que la porte externe échoue encore), la boucle s&#39;arrête sur un travail à moitié fait, ou continue de dépenser en silence sans plafond de tours ni de budget.</p>
+<div class="mermaid">flowchart LR
+    A((1<br/>Départ))
+    B((2<br/>L'agent lit<br/>prompt +<br/>état du dépôt))
+    C((3<br/>L'agent écrit<br/>du code / modifie))
+    D((4<br/>Contrôle<br/>externe))
+    P{OK ?}
+    X[Sortie<br/>de boucle]
+
+    A --> B
+    B --> C
+    C --> D
+    D --> P
+    P -- Oui. --> X
+    P -- Non. --> A
+
+    classDef step fill:#0787ff,stroke:#0787ff,color:#fff,font-weight:bold;
+    classDef text fill:#111,stroke:#555,color:#fff;
+    classDef decision fill:#111,stroke:#fff,color:#fff;
+    classDef exit fill:#111,stroke:#111,color:#fff;
+
+    class A,B,C,D step;
+    class P decision;
+    class X exit;
+
+    linkStyle 0 stroke:#fff,stroke-width:4px;
+    linkStyle 1 stroke:#fff,stroke-width:4px;
+    linkStyle 2 stroke:#fff,stroke-width:4px;
+    linkStyle 3 stroke:#fff,stroke-width:4px;
+    linkStyle 4 stroke:#00c7a7,stroke-width:4px;
+    linkStyle 5 stroke:#ff4b4b,stroke-width:4px;</div>
+<p><strong>La boucle Ralph Wiggum survient quand :</strong></p>
+<table>
+<thead>
+<tr>
+<th>Problème</th>
+<th>Symptôme</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Pas de vérificateur réel</td>
+<td>Un second agent « revoit » sans signal objectif — deux optimistes d&#39;accord</td>
+</tr>
+<tr>
+<td>Conditions molles</td>
+<td>« Terminé » = jugement de l&#39;agent, pas test/build/typage</td>
+</tr>
+<tr>
+<td>Pas d&#39;arrêt forcé</td>
+<td>La boucle tourne jusqu&#39;à la limite de budget, la limite de débit ou votre intervention</td>
+</tr>
+</tbody></table>
+<p><strong>Le correctif</strong> : la porte de l&#39;étape 11 — quelque chose d&#39;objectif qui peut échouer. Test qui passe ou non. Build qui compile ou non. Linter à zéro ou non. Pas un vérificateur qui a une opinion.</p>
+<p><strong>Autres échecs mesurés :</strong></p>
+<table>
+<thead>
+<tr>
+<th>Mode d&#39;échec</th>
+<th>Mitigation</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Dérive d&#39;objectif</strong> sur longues sessions — les contraintes « ne pas faire X » disparaissent au tour 47</td>
+<td>Relire <code>VISION.md</code> ou <code>AGENTS.md</code> à chaque run</td>
+</tr>
+<tr>
+<td><strong>Biais auto-préférentiel</strong> — le faiseur note ses propres devoirs</td>
+<td>Sous-agent vérificateur sans accès au raisonnement du faiseur</td>
+</tr>
+<tr>
+<td><strong>Paresse agentique</strong> — « assez bon » à mi-parcours</td>
+<td>Boucle à objectif avec condition d&#39;arrêt objective vérifiée par un modèle frais</td>
+</tr>
+</tbody></table>
+<h3>13. Dette de compréhension et abandon cognitif</h3>
+<p>Plus la boucle s&#39;améliore, plus ces risques deviennent aigus :</p>
+<ul>
+<li><strong>Dette de compréhension</strong> — plus la boucle livre vite du code que vous n&#39;avez pas écrit, plus l&#39;écart grandit entre le dépôt et ce que vous comprenez. Le jour où vous devez déboguer un système que personne n&#39;a lu, la facture dépasse celle des tokens.</li>
+<li><strong>Abandon cognitif</strong> — la tentation d&#39;arrêter de juger et d&#39;accepter ce que la boucle renvoie. Concevoir la boucle soigneusement guérit ; la concevoir pour éviter de penser accélère le problème.</li>
+</ul>
+<p><strong>Mitigations (non techniques) :</strong></p>
+<ul>
+<li>Lire les diffs — sinon vous louez de la dette de compréhension à intérêts composés</li>
+<li>Contrôler la porte par échantillonnage — vérifier que les tests qui approuvent les PR attrapent vraiment les échecs qui vous importent ; les portes pourrissent</li>
+<li>Bloquer l&#39;architecture — garder la boucle sur des changements petits et vérifiables par machine</li>
+<li>Concevoir la boucle à deux — un second regard attrape les angles morts que la boucle exploitera sinon</li>
+</ul>
+<h3>14. La taxe sécurité</h3>
+<p>Une boucle non surveillée est une <strong>surface d&#39;attaque</strong> non surveillée.</p>
+<table>
+<thead>
+<tr>
+<th>Menace</th>
+<th>Mesure</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Code généré mergé sans revue</td>
+<td>Porte incluant contrôles sécurité (SAST, audit de dépendances, scan de secrets)</td>
+</tr>
+<tr>
+<td>Skills comme vecteur d&#39;injection</td>
+<td>Auditer les sources avant installation ; une boucle qui installe des skills hérite de toute injection dans leurs descriptions</td>
+</tr>
+<tr>
+<td>Identifiants dans les logs</td>
+<td>Désactiver le logging verbeux en production ; sanitiser ce qui est journalisé</td>
+</tr>
+<tr>
+<td>Extension des permissions</td>
+<td>Re-auditer les permissions tous les 30 jours</td>
+</tr>
+</tbody></table>
+<p><strong>SAST</strong> (Static Application Security Testing) — Analyse statique du code source pour détecter des failles de sécurité avant exécution.</p>
+<p>Des audits de skills communautaires ont montré qu&#39;une fraction non négligeable peut fuiter des identifiants. Lisez le code source avant d&#39;installer un skill tiers.</p>
+<hr>
+<h2>Erreurs qui transforment les boucles en gouffres financiers</h2>
+<table>
+<thead>
+<tr>
+<th>Erreur</th>
+<th>Conséquence</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Construire sans le test des 4 conditions</td>
+<td>La boucle coûte plus qu&#39;elle ne rapporte</td>
+</tr>
+<tr>
+<td>Pas de porte objective</td>
+<td>Deux optimistes qui se valident mutuellement</td>
+</tr>
+<tr>
+<td>Un seul agent écrit et vérifie</td>
+<td>Biais auto-préférentiel — toujours « A+ »</td>
+</tr>
+<tr>
+<td>Pas de fichier d&#39;état</td>
+<td>Chaque run repart de zéro</td>
+</tr>
+<tr>
+<td>Conditions d&#39;arrêt vagues</td>
+<td>« Quand ça a l&#39;air bon » ne tient jamais</td>
+</tr>
+<tr>
+<td>Pas de plafond de tokens / tours</td>
+<td>Plafonds non définis → 5 à 10× le budget prévu</td>
+</tr>
+<tr>
+<td>Boucles lourdes sur forfait consommateur</td>
+<td>Facture ou rate limit — l&#39;un des deux vous rattrape</td>
+</tr>
+<tr>
+<td>Installation automatique de skills communautaires</td>
+<td>Risque d&#39;injection et de fuite d&#39;identifiants</td>
+</tr>
+<tr>
+<td>Boucles sur du travail à jugement</td>
+<td>Architecture, auth, paiements — garder lint-and-fix, pas la stratégie</td>
+</tr>
+<tr>
+<td>Ne pas lire les diffs</td>
+<td>Dette de compréhension — le debug coûte plus que les tokens</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Coûts et tokens</h2>
+<p>Les boucles consomment des tokens à chaque tour : prompt système, fichier projet, définitions d&#39;outils, historique, sorties d&#39;outils volumineuses (gros fichiers, logs verbeux). Ce n&#39;est pas une dépense unique — c&#39;est un <strong>flux récurrent</strong> qu&#39;il faut budgéter comme n&#39;importe quelle infra.</p>
+<h3>Ce qui coûte le plus</h3>
+<table>
+<thead>
+<tr>
+<th>Poste</th>
+<th>Pourquoi</th>
+<th>Levier</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Tours nombreux</td>
+<td>Chaque tour recharge le contexte accumulé</td>
+<td>Plafond de tours, tâches bornées, sous-agents pour isoler</td>
+</tr>
+<tr>
+<td>Sorties d&#39;outils lourdes</td>
+<td>Lecture d&#39;un gros fichier, logs verbeux</td>
+<td>Limiter la lecture, filtrer les logs, recherche ciblée avant lecture complète</td>
+</tr>
+<tr>
+<td>Sous-agents</td>
+<td>Chaque agent = sa propre session + modèle</td>
+<td>Réserver aux vérifications et tâches complexes</td>
+</tr>
+<tr>
+<td>MCP excessif</td>
+<td>Schémas d&#39;outils dans chaque requête</td>
+<td>Peu de serveurs, outils au strict nécessaire</td>
+</tr>
+<tr>
+<td>Effort élevé</td>
+<td>Plus de raisonnement par tour</td>
+<td>Effort bas pour triage, élevé pour debug seulement</td>
+</tr>
+<tr>
+<td>Retries sans porte</td>
+<td>L&#39;agent explore en boucle sans livrer</td>
+<td>Porte objective + plafond de budget</td>
+</tr>
+</tbody></table>
+<h3>La métrique business</h3>
+<p>Plafonds recommandés en production : budget par run, tours max par session, budget mensuel par équipe, alerte si le taux d&#39;acceptation tombe sous 50 %.</p>
+<p><strong>La métrique qui compte</strong> : coût par changement <strong>accepté</strong> — pas les tokens dépensés, pas les tâches tentées.</p>
+<hr>
+<h2>Conclusion</h2>
+<p>Le levier a changé. Votre rôle aussi.</p>
+<p>Pendant longtemps, le levier était dans le <strong>prompt</strong> : meilleur contexte, meilleure sortie en un coup. Les agents sont assez bons pour que le prochain levier soit un étage au-dessus : le <strong>système</strong> qui décide quoi faire, quand, avec quelle porte, et quel état survit entre les runs.</p>
+<p>À l&#39;intérieur, c&#39;est toujours la même boucle d&#39;exécution — tours d&#39;outils, contexte qui grossit, compaction — que vous orchestrez avec automations, skills, état, permissions et plafonds.</p>
+<p>Mais tout le monde n&#39;a pas besoin d&#39;une boucle produit tout de suite — pas tant que la tâche ne se répète pas, que la vérification n&#39;est pas automatisée, que le budget n&#39;absorbe pas le gaspillage et que l&#39;agent n&#39;a pas les outils d&#39;un senior.</p>
+<p><strong>Une condition manquante → la boucle coûte plus qu&#39;elle ne rapporte.</strong></p>
+<p>Si vous passez le test : construisez petit. Une automation. Un skill. Un fichier d&#39;état. Une porte. Run manuel fiable → skill → boucle → planification. L&#39;ordre compte.</p>
+<p>Budgétez en <strong>coût par changement accepté</strong>, plafonnez chaque run, et gardez le contexte léger — c&#39;est ce qui sépare une boucle rentable d&#39;un gouffre à tokens.</p>
+<p>Concevez la boucle. Restez l&#39;ingénieur.</p>
+
+        </main>
+    </div>
+
+    <script src="../script.js" defer></script>
+    <script src="../nav.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" defer crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" defer crossorigin="anonymous"></script>
+    <script src="../content-enhance.js" defer></script>
+</body>
+</html>

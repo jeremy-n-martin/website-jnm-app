@@ -1,0 +1,12 @@
+{
+  "name": "website-jnm-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "dev": "npx --yes serve . -l 3000"
+  },
+  "devDependencies": {
+    "marked": "^15.0.12"
+  }
+}

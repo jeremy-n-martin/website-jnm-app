@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Jeremy N. Martin Personnal Website</title>
+    <meta name="description" content="Personal website of Jeremy Nicolas Martin — French mathematician, researcher and founder based in Paris.">
+    <meta name="theme-color" content="#ffe6f2">
+    <title>Jeremy N. Martin — Personal Website</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32x32.png">
     <link rel="icon" type="image/png" sizes="16x16" href="icons/favicon-16x16.png">
@@ -12,38 +14,37 @@
     <link rel="icon" type="image/png" sizes="512x512" href="icons/android-chrome-512x512.png">
 </head>
 <body>
-    <canvas id="plexus-canvas"></canvas> 
+    <canvas id="plexus-canvas" aria-hidden="true"></canvas>
     <div class="containermain">
-        <header>
-            <nav class="fixed-nav">
-                <ul>
-                    <li><a href="index.html" class="tooltip" data-tooltip="Home">🏠</a></li>
-                    <li><a href="curiosities.html" class="tooltip" data-tooltip="Curiosities">🦄</a></li>
-                    <li><a href="latin.html" class="tooltip" data-tooltip="Latin Expressions">🌐</a></li>
-                    <li><a href="exemplars.html" class="tooltip" data-tooltip="Exemplars">🏅</a></li>
-                    <li><a href="publications.html" class="tooltip" data-tooltip="Publications">📚</a></li>
-                    <li><a href="prompt.html" class="tooltip" data-tooltip="Prompt Guide">💬</a></li>
-
-                </ul>
-            </nav>
+        <header class="site-header">
+            <a href="index.html" class="site-title">Jeremy N. Martin</a>
+            <nav class="site-nav" id="site-nav" aria-label="Main navigation"></nav>
         </header>
         <main>
-            <img src="profile.png" alt="Jeremy Nicolas Martin" class="imagejm">
-            <h2 class="citation">"In life, everything is to be learned, everything is to be loved. Imagination is the ultimate master of existence."</h2>
+            <img
+                src="profile.png"
+                alt="Jeremy Nicolas Martin"
+                class="imagejm"
+                width="200"
+                height="200"
+                loading="eager"
+                decoding="async"
+            >
+            <blockquote class="citation">
+                <p>"In life, everything is to be learned, everything is to be loved. Imagination is the ultimate master of existence."</p>
+            </blockquote>
 
-            <section>
-
+            <section class="prose">
                 <h1>Welcome</h1>
                 <p>Welcome to the personal website of <a href="https://www.linkedin.com/in/jeremy-n-martin/">Jeremy Nicolas Martin</a>.</p>
                 <p>
-                    I am a French mathematician based in Paris, France. My academic journey took me through some of France's most esteemed institutions, such as <a href="https://www.polytechnique.edu/">École Polytechnique</a> and <a href="https://www.sorbonne-universite.fr/" target="_blank">Pierre and Marie Curie University</a>, where I honed my expertise in pure and applied mathematics. My professional experience has spanned various fields, including computer science, life sciences, artificial intelligence, epistemology, anthropology, and value theory, with a consistent focus on innovation and societal advancement.
-                </p>
-                <p></p> 
-                <p>
-                    I founded a pioneering lab dedicated to blockchain and AI, <a href="https://www.smart-chain.fr/en" target="_blank">Smart-Chain</a>, and currently lead its research and development department. I aim to bridge theoretical constructs with practical implementations to accelerate the adoption of technological progress and achieve sustainable outcomes more efficiently. Previously, I led significant projects in various sectors, including econonomics and value exchange, through my involvement with multiple organizations. I also funded the <a href="https://cabinetduplateau.fr/">Cabinet Du Plateau</a>, a medical office that provides comprehensive care to patients.
+                    I am a French mathematician based in Paris, France. My academic journey took me through some of France's most esteemed institutions, such as <a href="https://www.polytechnique.edu/">École Polytechnique</a> and <a href="https://www.sorbonne-universite.fr/" target="_blank" rel="noopener noreferrer">Pierre and Marie Curie University</a>, where I honed my expertise in pure and applied mathematics. My professional experience has spanned various fields, including computer science, life sciences, artificial intelligence, epistemology, anthropology, and value theory, with a consistent focus on innovation and societal advancement.
                 </p>
                 <p>
-                    Despite my deep involvement in leading roles, I found my passion lies rather in fondamental research. I prefer to contribute through intellectual rigor and scientific exploration, even though I often lead high-profile teams. My academic contributions also extend to education, where I developed a master's program in digital technology, fostering partnerships with major institutions to advance the field.
+                    I founded a pioneering lab dedicated to blockchain and AI, <a href="https://www.smart-chain.fr/en" target="_blank" rel="noopener noreferrer">Smart-Chain</a>, and currently lead its research and development department. I aim to bridge theoretical constructs with practical implementations to accelerate the adoption of technological progress and achieve sustainable outcomes more efficiently. Previously, I led significant projects in various sectors, including economics and value exchange, through my involvement with multiple organizations. I also funded the <a href="https://cabinetduplateau.fr/">Cabinet Du Plateau</a>, a medical office that provides comprehensive care to patients.
+                </p>
+                <p>
+                    Despite my deep involvement in leading roles, I found my passion lies rather in fundamental research. I prefer to contribute through intellectual rigor and scientific exploration, even though I often lead high-profile teams. My academic contributions also extend to education, where I developed a master's program in digital technology, fostering partnerships with major institutions to advance the field.
                 </p>
                 <p>
                     Outside of my professional pursuits, I am a black belt in karate and maintain a rigorous health regimen. My relentless curiosity and passion for knowledge have also led me to become a member of the prestigious <a href="https://www.triplenine.org/">Triple Nine Society</a> and the <a href="https://www.thethousand.com/">International Society for Philosophical Enquiry (ISPE)</a>. Both organizations demand the highest standards of intellectual excellence, requiring a verified IQ in the top 0.1% of the population. In these societies, I engage with other like-minded individuals to further explore the boundaries of human knowledge and contribute to intellectual and philosophical progress.
@@ -54,11 +55,11 @@
                 <p>
                     As I embark on new projects and personal milestones, I remain steadfast in my commitment to balance professional excellence with personal fulfillment. My journey is defined by an insatiable quest for knowledge, a pursuit that compels me to challenge the frontiers of technology and thought. I invite you to connect with me —whether for collaborative ventures or engaging discussions— there is always more to learn and explore.
                 </p>
-                
             </section>
         </main>
     </div>
 
-    <script src="script.js"></script>
+    <script src="script.js" defer></script>
+    <script src="nav.js" defer></script>
 </body>
 </html>

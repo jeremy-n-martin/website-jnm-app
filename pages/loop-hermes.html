@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Les boucles avec Hermes — pratique — Jeremy N. Martin">
+    <meta name="theme-color" content="#ffe6f2">
+    <title>Les boucles avec Hermes — pratique — Jeremy N. Martin</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32x32.png">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+</head>
+<body>
+    <canvas id="plexus-canvas" aria-hidden="true"></canvas>
+    <div class="containermain">
+        <header class="site-header">
+            <a href="../index.html" class="site-title">Jeremy N. Martin</a>
+            <nav class="site-nav" id="site-nav" data-depth="1" aria-label="Navigation principale"></nav>
+        </header>
+        <main class="prose">
+            <p>Ce guide couvre la <strong>mise en pratique des boucles avec Hermes Agent</strong> : <code>/goal</code>, cron, kanban, profils, skills, mémoire, worktrees, intégrations et garde-fous.</p>
+<p>La différence importante : Hermes n&#39;est pas seulement un agent qui exécute des prompts. C&#39;est un agent pensé autour d&#39;une <strong>boucle d&#39;apprentissage et de persistance</strong> : il peut créer des skills depuis l&#39;expérience, améliorer ces skills, se souvenir de faits utiles, rechercher ses anciennes sessions, planifier des tâches, déléguer à d&#39;autres profils et continuer un objectif au-delà d&#39;un seul tour.</p>
+<p><strong>Version honnête</strong> : Hermes est très puissant pour construire des boucles, mais il pousse facilement à l&#39;illusion dangereuse du “laisse tourner”. La bonne approche n&#39;est pas de lancer plus d&#39;autonomie ; c&#39;est de rendre la boucle <strong>plus petite, plus vérifiable et plus bornée</strong>.</p>
+<hr>
+<h2>La boucle Hermes en une image</h2>
+<p>Hermes combine trois niveaux qui sont souvent confondus :</p>
+<table>
+<thead>
+<tr>
+<th>Niveau</th>
+<th>Question</th>
+<th>Primitive Hermes</th>
+<th>Risque principal</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Boucle d&#39;exécution</strong></td>
+<td>Comment l&#39;agent agit-il pendant une session ?</td>
+<td><code>AIAgent</code>, outils, terminal, fichiers, navigateur, mémoire, skills</td>
+<td>Contexte qui gonfle, outils trop larges</td>
+</tr>
+<tr>
+<td><strong>Boucle d&#39;objectif</strong></td>
+<td>Comment l&#39;agent continue-t-il sans “continue” manuel ?</td>
+<td><code>/goal</code>, juge auxiliaire, contrats, <code>/subgoal</code>, attente sur processus</td>
+<td>Objectif vague, faux positif du juge</td>
+</tr>
+<tr>
+<td><strong>Boucle produit</strong></td>
+<td>Comment relancer, distribuer et historiser le travail ?</td>
+<td><code>cron</code>, <code>kanban</code>, profils, dashboard, gateway, webhooks</td>
+<td>Coût récurrent, sécurité, dérive d&#39;état</td>
+</tr>
+</tbody></table>
+<div class="mermaid">flowchart LR
+    U[Vous fixez<br/>un objectif] --> G[/goal<br/>objectif persistant]
+    G --> A[AIAgent<br/>session Hermes]
+    A --> T[Outils<br/>terminal · fichiers · web · navigateur]
+    T --> A
+    A --> J[Juge léger<br/>done / continue / wait]
+    J -- continue --> A
+    J -- done --> R[Résultat]
+    J -- wait --> W[Attente<br/>CI · build · process]
+    W --> J
+
+    A -. apprend .-> M[Memory<br/>faits]
+    A -. formalise .-> S[Skills<br/>procédures]
+    C[Cron] -. relance .-> A
+    K[Kanban] -. distribue .-> A
+
+    classDef core fill:#edf8e8,stroke:#5b9b45,color:#111;
+    classDef loop fill:#f8f5ff,stroke:#7c3aed,color:#111;
+    classDef tool fill:#fff7f2,stroke:#f0a06f,color:#111;
+    classDef state fill:#dff1ff,stroke:#0787ff,color:#111;
+
+    class A,J core;
+    class G,C,K loop;
+    class T tool;
+    class M,S,W,R state;</div>
+<p><strong>Point clé</strong> : avec Hermes, la boucle la plus rentable n&#39;est pas forcément un script externe. Elle peut être composée directement avec <code>/goal</code>, <code>cron</code>, <code>kanban</code>, <code>skills</code>, <code>profiles</code>, <code>AGENTS.md</code>, <code>SOUL.md</code> et un fichier d&#39;état dans le dépôt.</p>
+<hr>
+<h2>État du repo au 25 juin 2026 : ce qui change pour les boucles</h2>
+<p>Les derniers commits du dépôt <code>NousResearch/hermes-agent</code> montrent une direction très claire : Hermes se durcit autour de la <strong>continuité</strong>, de la <strong>vérification</strong> et du <strong>coût</strong>.</p>
+<table>
+<thead>
+<tr>
+<th>Axe récent</th>
+<th>Ce que les pushes indiquent</th>
+<th>Impact sur les boucles</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Cache / coût</strong></td>
+<td><code>prompt_cache_key</code> adressé par contenu pour que les cron récurrents réutilisent mieux le préfixe chaud</td>
+<td>Les jobs planifiés deviennent moins gaspilleurs si leur contexte reste stable</td>
+</tr>
+<tr>
+<td><strong>Vérification avant arrêt</strong></td>
+<td>ledger d&#39;évidence, statut de vérification exposé, reconnaissance des scripts de vérification ad hoc, exigence de vérification avant fin d&#39;édition</td>
+<td>Hermes se rapproche d&#39;une vraie “porte” au lieu d&#39;une auto-déclaration de succès</td>
+</tr>
+<tr>
+<td><strong>Cron continuable</strong></td>
+<td>livraison miroir dans la conversation cible, thread préféré, scope par conversation d&#39;origine, alternance sûre</td>
+<td>Les automations deviennent plus faciles à suivre dans les canaux réels</td>
+</tr>
+<tr>
+<td><strong>Gateway / cloud</strong></td>
+<td>mode dormant / scale-to-zero</td>
+<td>Meilleure compatibilité avec les agents persistants qui dorment entre deux runs</td>
+</tr>
+<tr>
+<td><strong>Sécurité</strong></td>
+<td>autorisation relay par livraison, assainissement de cwd Docker, redaction par défaut dans les releases récentes</td>
+<td>Les boucles non surveillées restent dangereuses, mais les garde-fous progressent</td>
+</tr>
+</tbody></table>
+<p><strong>Lecture critique</strong> : le signal le plus intéressant n&#39;est pas “Hermes a plus de features”. C&#39;est que les features récentes visent les trois faiblesses structurelles des boucles : <strong>elles coûtent</strong>, <strong>elles s&#39;arrêtent trop tôt</strong>, <strong>elles perdent leur continuité</strong>.</p>
+<hr>
+<h2>PARTIE 1 · Quand utiliser une boucle Hermes</h2>
+<h3>01. Le test des 4 conditions reste obligatoire</h3>
+<p>Avant de transformer une tâche en boucle Hermes, vérifiez les quatre conditions suivantes :</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Condition</th>
+<th>Question de décision</th>
+<th>Sinon</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td><strong>Répétition</strong></td>
+<td>La tâche revient-elle au moins chaque semaine ?</td>
+<td>Prompt manuel</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>Vérification automatique</strong></td>
+<td>Existe-t-il une commande qui peut dire non ?</td>
+<td>Revue humaine</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>Budget absorbable</strong></td>
+<td>Les retries inutiles sont-ils acceptables ?</td>
+<td>Boucle trop chère</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>Outils suffisants</strong></td>
+<td>Hermes a-t-il logs, shell, fichiers, web, repo, tests ?</td>
+<td>Boucle aveugle</td>
+</tr>
+</tbody></table>
+<div class="mermaid">flowchart LR
+    A[Tâche candidate] --> B{Répétée ?}
+    B -- non --> M[Prompt manuel]
+    B -- oui --> C{Vérifiable ?}
+    C -- non --> H[Humain dans la boucle]
+    C -- oui --> D{Budget OK ?}
+    D -- non --> M
+    D -- oui --> E{Outils senior ?}
+    E -- non --> P[Préparer l'environnement]
+    E -- oui --> L[Boucle Hermes]
+
+    classDef ok fill:#edf8e8,stroke:#5b9b45,color:#111;
+    classDef bad fill:#fff7f2,stroke:#f0a06f,color:#111;
+    classDef q fill:#f8f5ff,stroke:#7c3aed,color:#111;
+    class B,C,D,E q;
+    class L ok;
+    class M,H,P bad;</div>
+<p>Hermes rend l&#39;autonomie facile. C&#39;est précisément pour cela que le test est encore plus important qu&#39;avec un agent manuel.</p>
+<h3>02. Les meilleures premières boucles Hermes</h3>
+<table>
+<thead>
+<tr>
+<th>Boucle</th>
+<th>Primitive Hermes</th>
+<th>Porte objective</th>
+<th>Pourquoi c&#39;est bon</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Triage CI quotidien</td>
+<td><code>cron</code> + skill <code>ci-triage</code></td>
+<td><code>scripts/run_tests.sh</code>, statut CI</td>
+<td>Répétitif, borné, automatisable</td>
+</tr>
+<tr>
+<td>Nettoyage lint</td>
+<td><code>/goal</code> ou <code>cron</code></td>
+<td><code>ruff</code>, <code>eslint</code>, <code>mypy</code>, <code>pytest</code></td>
+<td>L&#39;agent peut corriger puis prouver</td>
+</tr>
+<tr>
+<td>Revue PR assistée</td>
+<td>skill + GitHub/MCP</td>
+<td>tests + checklist review</td>
+<td>Hermes peut résumer, pas merger seul</td>
+</tr>
+<tr>
+<td>Veille repo / issues</td>
+<td><code>cron</code> + livraison Telegram/Slack</td>
+<td>pas de modification code</td>
+<td>Faible risque, forte valeur</td>
+</tr>
+<tr>
+<td>Décomposition multi-tâches</td>
+<td><code>kanban</code> + profils</td>
+<td>revue par étape</td>
+<td>Durable et observable</td>
+</tr>
+<tr>
+<td>Rapport hebdo projet</td>
+<td><code>cron</code> + <code>context_from</code></td>
+<td>fichier généré</td>
+<td>Bon usage du chaînage</td>
+</tr>
+</tbody></table>
+<h3>03. Les mauvaises premières boucles</h3>
+<table>
+<thead>
+<tr>
+<th>Mauvaise boucle</th>
+<th>Pourquoi</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>“Refactorise toute l&#39;architecture”</td>
+<td>Succès non objectivable ; dette de compréhension massive</td>
+</tr>
+<tr>
+<td>“Améliore le produit”</td>
+<td>Objectif flou, juge faible, scope infini</td>
+</tr>
+<tr>
+<td>“Corrige l&#39;auth et déploie”</td>
+<td>Surface sécurité + irréversibilité</td>
+</tr>
+<tr>
+<td>“Mets à jour toutes les dépendances et merge”</td>
+<td>Trop de risques transverses</td>
+</tr>
+<tr>
+<td>“Surveille tout et fais ce qu&#39;il faut”</td>
+<td>Permissions trop larges, coût non borné</td>
+</tr>
+</tbody></table>
+<p><strong>Règle simple</strong> : Hermes peut travailler longtemps ; cela ne veut pas dire qu&#39;il doit décider longtemps.</p>
+<hr>
+<h2>PARTIE 2 · Les primitives Hermes</h2>
+<h2><code>/goal</code> : la boucle d&#39;objectif persistante</h2>
+<p><code>/goal</code> donne à Hermes un objectif durable. Après chaque tour, un juge léger regarde la dernière réponse et décide : <strong>done</strong>, <strong>continue</strong> ou <strong>wait</strong>. Si ce n&#39;est pas fini, Hermes se reprompte lui-même dans la même session.</p>
+<h3>Quand utiliser <code>/goal</code></h3>
+<p>Bon usage :</p>
+<pre><code class="language-text">/goal Corriger tous les tests du module auth
+verify: uv run pytest tests/auth &amp;&amp; uv run ruff check src/auth tests/auth
+constraints: ne pas changer le format de réponse de /login
+boundaries: src/auth, tests/auth
+stop when: une migration DB ou une décision produit est nécessaire</code></pre>
+<p>Mauvais usage :</p>
+<pre><code class="language-text">/goal Améliore le backend autant que possible</code></pre>
+<p>Le premier donne au juge une surface de preuve. Le second l&#39;invite à halluciner une définition de “mieux”.</p>
+<h3>Contrat de complétion</h3>
+<p>Un <code>/goal</code> solide doit contenir cinq champs mentaux :</p>
+<table>
+<thead>
+<tr>
+<th>Champ</th>
+<th>Question</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>outcome</code></td>
+<td>Quel état final unique doit être vrai ?</td>
+</tr>
+<tr>
+<td><code>verification</code></td>
+<td>Quelle commande ou quel artefact le prouve ?</td>
+</tr>
+<tr>
+<td><code>constraints</code></td>
+<td>Qu&#39;est-ce qui ne doit pas régresser ?</td>
+</tr>
+<tr>
+<td><code>boundaries</code></td>
+<td>Quels fichiers / outils / systèmes sont dans le scope ?</td>
+</tr>
+<tr>
+<td><code>stop_when</code></td>
+<td>À quel moment Hermes doit arrêter et demander ?</td>
+</tr>
+</tbody></table>
+<div class="mermaid">flowchart LR
+    O[Outcome] --> V[Verification]
+    V --> C[Constraints]
+    C --> B[Boundaries]
+    B --> S[Stop when]
+    S --> G[/goal robuste]
+
+    classDef box fill:#fff,stroke:#222,color:#111;
+    classDef final fill:#111,stroke:#111,color:#e8a317;
+    class O,V,C,B,S box;
+    class G final;</div>
+<h3><code>/subgoal</code> : resserrer une boucle en cours</h3>
+<p>Quand un objectif est déjà actif, <code>/subgoal</code> permet d&#39;ajouter un critère sans repartir de zéro.</p>
+<p>Exemple :</p>
+<pre><code class="language-text">/subgoal ajoute un test de régression couvrant le bug corrigé</code></pre>
+<p>C&#39;est utile quand Hermes corrige le symptôme mais oublie de verrouiller la non-régression.</p>
+<h3><code>/goal wait</code> : ne pas brûler du budget en attendant</h3>
+<p>Certaines boucles sont bloquées par un processus externe : CI, build long, watcher, déploiement de staging. Hermes peut parquer l&#39;objectif sur un process ou une attente. La bonne forme mentale :</p>
+<div class="mermaid">flowchart LR
+    A[Agent pousse une PR] --> B[Watcher CI en arrière-plan]
+    B --> C{CI terminée ?}
+    C -- non --> W[Goal parked<br/>pas de tours brûlés]
+    W --> C
+    C -- oui --> D[Juge /goal]
+    D -- OK --> E[Terminé]
+    D -- KO --> F[Correction suivante]
+    F --> B</div>
+<p><strong>Erreur à éviter</strong> : demander à Hermes de “checker toutes les minutes” dans une boucle LLM. Si un script ou un watcher peut attendre sans modèle, utilisez-le.</p>
+<hr>
+<h2>Cron Hermes : le battement planifié</h2>
+<p><code>cron</code> transforme une tâche en automation. Un job peut être ponctuel ou récurrent, charger un ou plusieurs skills, tourner dans un répertoire de projet, livrer son résultat vers un chat, un fichier local ou une plateforme, et même fonctionner en mode <strong>no-agent</strong> quand un simple script suffit.</p>
+<h3>Ce que fait un tick cron</h3>
+<div class="mermaid">flowchart TB
+    A[Tick gateway] --> B[Lire jobs.json]
+    B --> C[next_run_at atteint ?]
+    C -- non --> Z[Rien]
+    C -- oui --> D[Créer session AIAgent fraîche]
+    D --> E[Injecter skills attachés]
+    E --> F[Exécuter prompt]
+    F --> G[Livrer résultat]
+    G --> H[Mettre à jour metadata<br/>et prochaine date]</div>
+<h3>Exemples utiles</h3>
+<p>Créer une boucle de veille :</p>
+<pre><code class="language-bash">hermes cron create &quot;every day at 09:00&quot; \
+  &quot;Audit open PRs, summarize CI health, and write HERMES_LOOP_STATE.md&quot; \
+  --workdir /home/me/projects/acme \
+  --skill ci-triage \
+  --name &quot;daily-ci-triage&quot;</code></pre>
+<p>Créer une synthèse chaînée :</p>
+<pre><code class="language-text">cronjob(action=&quot;create&quot;, name=&quot;daily-digest&quot;,
+        schedule=&quot;every day 7am&quot;,
+        context_from=[&quot;ai-news-fetch&quot;, &quot;github-prs-fetch&quot;],
+        prompt=&quot;Write the daily digest using the outputs above.&quot;)</code></pre>
+<h3>Cron n&#39;est pas <code>/goal</code></h3>
+<table>
+<thead>
+<tr>
+<th>Besoin</th>
+<th>Choix</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>“Relance tous les matins”</td>
+<td><code>cron</code></td>
+</tr>
+<tr>
+<td>“Continue jusqu&#39;à ce que les tests passent”</td>
+<td><code>/goal</code></td>
+</tr>
+<tr>
+<td>“Relance tous les matins et, si quelque chose casse, corrige jusqu&#39;à preuve”</td>
+<td><code>cron</code> qui déclenche un prompt contenant un contrat <code>/goal</code> ou une procédure équivalente</td>
+</tr>
+<tr>
+<td>“Exécute un script et envoie stdout”</td>
+<td>no-agent cron</td>
+</tr>
+</tbody></table>
+<p><strong>Bon réflexe coût</strong> : si la tâche est déterministe et scriptable, ne mettez pas un LLM dans la boucle. Hermes peut aussi servir d&#39;orchestrateur de scripts.</p>
+<hr>
+<h2>Kanban Hermes : la boucle multi-agents durable</h2>
+<p>Kanban est la primitive à utiliser quand une tâche traverse plusieurs agents, profils, rôles ou jours. Contrairement à <code>delegate_task</code>, qui est une sous-tâche courte ramenée dans le contexte parent, Kanban est une <strong>file de travail persistante</strong>.</p>
+<h3>Forme mentale</h3>
+<div class="mermaid">flowchart LR
+    O[Orchestrateur] --> T1[Task: recherche]
+    O --> T2[Task: implémentation]
+    O --> T3[Task: vérification]
+
+    T1 --> A1[Profil researcher]
+    T2 --> A2[Profil coder]
+    T3 --> A3[Profil reviewer]
+
+    A1 --> DB[(kanban.db)]
+    A2 --> DB
+    A3 --> DB
+    DB --> H[Humain / dashboard]</div>
+<h3>Quand préférer Kanban à <code>delegate_task</code></h3>
+<table>
+<thead>
+<tr>
+<th>Cas</th>
+<th align="right"><code>delegate_task</code></th>
+<th align="right">Kanban</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Question courte dans un contexte frais</td>
+<td align="right">✅</td>
+<td align="right">❌</td>
+</tr>
+<tr>
+<td>Recherche parallèle ponctuelle</td>
+<td align="right">✅</td>
+<td align="right">parfois</td>
+</tr>
+<tr>
+<td>Tâche qui doit survivre à un restart</td>
+<td align="right">❌</td>
+<td align="right">✅</td>
+</tr>
+<tr>
+<td>Travail repris par un autre profil</td>
+<td align="right">❌</td>
+<td align="right">✅</td>
+</tr>
+<tr>
+<td>Besoin d&#39;un dashboard et d&#39;une trace</td>
+<td align="right">❌</td>
+<td align="right">✅</td>
+</tr>
+<tr>
+<td>Pipeline engineering : décomposer → coder → review → PR</td>
+<td align="right">limité</td>
+<td align="right">✅</td>
+</tr>
+</tbody></table>
+<h3>Profil orchestrateur minimal</h3>
+<pre><code class="language-bash">hermes profile create researcher --description &quot;Lit docs et code, produit des notes sourcées.&quot;
+hermes profile create coder --description &quot;Implémente des changements bornés et lance les tests.&quot;
+hermes profile create reviewer --description &quot;Relit les diffs, cherche régressions et risques sécurité.&quot;</code></pre>
+<p>Puis :</p>
+<pre><code class="language-bash">hermes kanban init
+hermes dashboard</code></pre>
+<p><strong>Angle mort fréquent</strong> : créer plusieurs profils ne crée pas une vraie équipe si tous ont le même modèle, les mêmes permissions et le même prompt. Un reviewer utile doit avoir des instructions, outils et contraintes différentes du coder.</p>
+<hr>
+<h2>Profils : isoler l&#39;identité, pas le filesystem</h2>
+<p>Un profil Hermes possède son propre <code>config.yaml</code>, <code>.env</code>, <code>SOUL.md</code>, ses mémoires, sessions, skills, cron jobs et base d&#39;état. C&#39;est parfait pour séparer un agent “coder”, un agent “veille”, un agent “assistant perso”.</p>
+<p>Mais un profil n&#39;est <strong>pas</strong> un sandbox. Sur le backend terminal local, il garde l&#39;accès filesystem de votre compte utilisateur.</p>
+<table>
+<thead>
+<tr>
+<th>À isoler</th>
+<th>Mécanisme</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Mémoire / personnalité / config</td>
+<td>Profil Hermes</td>
+</tr>
+<tr>
+<td>Répertoire de travail</td>
+<td><code>terminal.cwd</code> ou <code>--workdir</code></td>
+</tr>
+<tr>
+<td>Branches parallèles</td>
+<td><code>--worktree</code> ou <code>git worktree</code></td>
+</tr>
+<tr>
+<td>Permissions filesystem réelles</td>
+<td>Docker, Daytona, Modal, sandbox externe</td>
+</tr>
+<tr>
+<td>Secrets</td>
+<td><code>.env</code>, <code>hermes secrets</code>, scopes plateforme</td>
+</tr>
+</tbody></table>
+<p>Exemple :</p>
+<pre><code class="language-bash">hermes profile create coder --description &quot;Assistant code sur le dépôt acme.&quot;
+coder config set terminal.cwd /home/me/projects/acme
+coder chat --worktree -q &quot;Corrige les erreurs de lint dans src/auth et lance les tests associés.&quot;</code></pre>
+<hr>
+<h2>Skills et mémoire : le cœur de la boucle d&#39;apprentissage</h2>
+<p>Hermes distingue deux choses :</p>
+<table>
+<thead>
+<tr>
+<th>Élément</th>
+<th>Contient</th>
+<th>Exemple</th>
+<th>Mauvais usage</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Memory</strong></td>
+<td>Faits stables</td>
+<td>“Le repo principal est dans <code>/home/me/acme</code>”</td>
+<td>Procédure longue</td>
+</tr>
+<tr>
+<td><strong>Skill</strong></td>
+<td>Procédure réutilisable</td>
+<td>“Comment faire un triage CI en 9 étapes”</td>
+<td>Préférence personnelle triviale</td>
+</tr>
+</tbody></table>
+<h3>Quand créer un skill</h3>
+<p>Créez un skill si la tâche :</p>
+<ol>
+<li>fait au moins 5 étapes ;</li>
+<li>revient plusieurs fois ;</li>
+<li>demande des conventions spécifiques ;</li>
+<li>peut échouer de façons connues ;</li>
+<li>gagne à être appelée par cron ou Kanban.</li>
+</ol>
+<p>Exemple de demande :</p>
+<pre><code class="language-text">Sauve ce workflow comme un skill appelé ci-triage.
+Il doit classifier les échecs, lancer les tests ciblés, écrire HERMES_LOOP_STATE.md,
+et ne jamais désactiver un test sans validation humaine.</code></pre>
+<h3>Exemple de skill pour boucle CI</h3>
+<pre><code class="language-text">name: ci-triage
+description: Classifier les échecs CI, reproduire localement quand possible,
+  proposer des correctifs bornés et escalader ce qui demande une décision humaine.
+---
+
+# Skill CI triage
+
+## Entrées
+- Lire HERMES_LOOP_STATE.md si présent.
+- Lire AGENTS.md pour les règles projet.
+- Inspecter les derniers échecs CI ou logs fournis.
+
+## Règles
+- Reproduire avant de corriger si possible.
+- Préférer un test ciblé avant une suite complète.
+- Ne jamais supprimer, désactiver ou assouplir un test pour obtenir du vert.
+- Si la cause touche auth, paiement, secrets ou infra critique : escalader.
+
+## Sortie obligatoire
+Mettre à jour HERMES_LOOP_STATE.md avec :
+- date du run ;
+- cause classifiée ;
+- fichiers inspectés ;
+- commandes lancées ;
+- preuve de vérification ;
+- prochain état : done / retry / blocked / human-review.</code></pre>
+<hr>
+<h2>AGENTS.md, SOUL.md et fichier d&#39;état</h2>
+<p>Hermes lit les fichiers de contexte projet comme <code>AGENTS.md</code> dans le répertoire courant. <code>SOUL.md</code> guide plutôt la personnalité durable d&#39;un profil. Pour une boucle de code, le trio minimal est :</p>
+<div class="mermaid">flowchart LR
+    A[AGENTS.md<br/>règles projet] --> H[Hermes]
+    S[SOUL.md<br/>style du profil] --> H
+    E[HERMES_LOOP_STATE.md<br/>état de boucle] --> H
+    H --> D[Diffs / rapports / PR]
+    D --> E</div>
+<h3><code>AGENTS.md</code> minimal</h3>
+<pre><code class="language-markdown"># Instructions agent — projet Acme
+
+## Commandes de vérification
+- Tests ciblés : `uv run pytest tests/&lt;module&gt;`
+- Lint : `uv run ruff check .`
+- Typage : `uv run mypy src`
+
+## Règles de modification
+- Ne pas toucher `src/billing/` sans accord humain.
+- Ne pas changer une API publique sans test de compatibilité.
+- Tout correctif doit inclure une preuve : commande + sortie résumée.
+
+## Boucles
+- Lire `HERMES_LOOP_STATE.md` au début de chaque run.
+- Mettre à jour `HERMES_LOOP_STATE.md` avant de conclure.
+- Si la vérification échoue deux fois avec deux causes différentes, bloquer et demander une revue.</code></pre>
+<h3><code>HERMES_LOOP_STATE.md</code> minimal</h3>
+<pre><code class="language-markdown"># État de boucle Hermes · ci-triage
+
+## Dernier run
+- Date : 2026-06-25
+- Déclencheur : cron daily-ci-triage
+- Objectif : corriger les échecs tests/auth
+- Statut : retry
+
+## Preuves
+- Commande : `uv run pytest tests/auth`
+- Résultat : 3 échecs reproduits
+- Commande : `uv run ruff check src/auth tests/auth`
+- Résultat : OK
+
+## En cours
+- Hypothèse : régression parsing token expiré
+- Fichiers inspectés : `src/auth/tokens.py`, `tests/auth/test_tokens.py`
+
+## Bloqué / escalade
+- Aucun
+
+## Prochain run
+- Corriger `tokens.py`
+- Ajouter test de régression
+- Relancer `uv run pytest tests/auth`</code></pre>
+<p><strong>Point critique</strong> : la mémoire Hermes est utile, mais le fichier d&#39;état dans le dépôt reste supérieur pour une boucle engineering. Il est versionnable, relisible par l&#39;équipe, visible en diff, et non dépendant d&#39;une session.</p>
+<hr>
+<h2>Worktrees et checkpoints</h2>
+<p>Hermes expose <code>--worktree</code> pour lancer une session dans un worktree isolé, et <code>--checkpoints</code> pour permettre des retours arrière filesystem.</p>
+<table>
+<thead>
+<tr>
+<th>Mécanisme</th>
+<th>Usage</th>
+<th>Limite</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>--worktree</code></td>
+<td>Éviter les collisions entre branches / agents</td>
+<td>Ne réduit pas la charge de revue</td>
+</tr>
+<tr>
+<td><code>git worktree</code> manuel</td>
+<td>Contrôle fin des branches</td>
+<td>Plus de gestion humaine</td>
+</tr>
+<tr>
+<td><code>--checkpoints</code></td>
+<td>Rollback après changements destructifs</td>
+<td>Ne remplace pas Git</td>
+</tr>
+<tr>
+<td><code>/rollback</code></td>
+<td>Restaurer un checkpoint</td>
+<td>À utiliser avec prudence si des fichiers non suivis comptent</td>
+</tr>
+</tbody></table>
+<p>Exemple :</p>
+<pre><code class="language-bash">coder chat --worktree --checkpoints -q \
+  &quot;Crée une branche de correction pour tests/auth, corrige uniquement ce module, puis donne la preuve de test.&quot;</code></pre>
+<hr>
+<h2>Intégrations et surfaces de pilotage</h2>
+<p>Hermes peut être piloté de plusieurs façons. Pour les boucles, cela compte énormément : vous pouvez passer d&#39;un usage chat à une orchestration externe sans changer le cœur agentique.</p>
+<table>
+<thead>
+<tr>
+<th>Surface</th>
+<th>Usage boucle</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>CLI / TUI</td>
+<td>Boucles locales, <code>/goal</code>, debugging, commandes rapides</td>
+</tr>
+<tr>
+<td>Gateway Telegram / Discord / Slack / etc.</td>
+<td>Automations qui livrent là où vous travaillez déjà</td>
+</tr>
+<tr>
+<td>Dashboard</td>
+<td>Supervision visuelle, Kanban, profils, config</td>
+</tr>
+<tr>
+<td>ACP</td>
+<td>Intégration IDE</td>
+</tr>
+<tr>
+<td>TUI gateway JSON-RPC</td>
+<td>Hôte custom avec contrôle fin sessions / approvals</td>
+</tr>
+<tr>
+<td>API server HTTP + SSE</td>
+<td>Frontends OpenAI-compatibles et intégrations web</td>
+</tr>
+<tr>
+<td>MCP / plugins</td>
+<td>GitHub, Linear, Gmail, Calendar, outils métier</td>
+</tr>
+</tbody></table>
+<h3>Codex app-server runtime : cas particulier</h3>
+<p>Hermes peut aussi déléguer certains tours <code>openai/*</code> ou <code>openai-codex/*</code> au runtime Codex app-server. Dans ce mode, Codex exécute ses propres outils de shell / patch / plan, tandis que Hermes garde le rôle d&#39;enveloppe : sessions, gateway, mémoire, skills, slash commands et callback MCP pour certains outils Hermes.</p>
+<p>À retenir :</p>
+<table>
+<thead>
+<tr>
+<th>Point</th>
+<th>Implication</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>C&#39;est opt-in</td>
+<td>Hermes ne bascule pas automatiquement dessus</td>
+</tr>
+<tr>
+<td><code>/goal</code>, cron, kanban restent utilisables</td>
+<td>Mais les approvals peuvent se comporter différemment</td>
+</tr>
+<tr>
+<td>Les plugins Codex peuvent être migrés</td>
+<td>GitHub, Linear, Gmail, Calendar, etc. selon votre installation</td>
+</tr>
+<tr>
+<td>Certains outils Hermes mid-loop ne passent pas via callback stateless</td>
+<td>Revenir au runtime Hermes par défaut si besoin de <code>delegate_task</code>, memory live, session_search, todo</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>PARTIE 3 · Construire la boucle Hermes minimale</h2>
+<h3>01. Préparer le profil</h3>
+<pre><code class="language-bash">hermes update --check
+hermes doctor
+hermes profile create coder --description &quot;Agent code, tests et petits correctifs vérifiables.&quot;
+coder setup
+coder config set terminal.cwd /home/me/projects/acme
+coder prompt-size</code></pre>
+<h3>02. Ajouter le socle projet</h3>
+<p>Dans le dépôt :</p>
+<pre><code class="language-text">AGENTS.md
+HERMES_LOOP_STATE.md
+scripts/verify-auth.sh</code></pre>
+<p><code>scripts/verify-auth.sh</code> :</p>
+<pre><code class="language-bash">#!/usr/bin/env bash
+set -euo pipefail
+uv run ruff check src/auth tests/auth
+uv run pytest tests/auth</code></pre>
+<h3>03. Faire un run manuel fiable</h3>
+<pre><code class="language-bash">coder chat --worktree --checkpoints -q \
+  &quot;Lis AGENTS.md et HERMES_LOOP_STATE.md. Corrige les échecs de scripts/verify-auth.sh. \
+  Ne touche qu'à src/auth et tests/auth. Termine uniquement si scripts/verify-auth.sh passe.&quot;</code></pre>
+<h3>04. Transformer en skill</h3>
+<pre><code class="language-text">Sauve ce workflow comme skill `verify-auth-loop`.
+Le skill doit lire HERMES_LOOP_STATE.md, lancer scripts/verify-auth.sh,
+corriger seulement src/auth/tests/auth, écrire les preuves, et bloquer après 2 échecs non convergents.</code></pre>
+<h3>05. Transformer en <code>/goal</code></h3>
+<pre><code class="language-text">/goal Réparer le module auth jusqu'à preuve
+verify: bash scripts/verify-auth.sh passe
+constraints: ne pas modifier billing, migrations ou API publique sans demander
+boundaries: src/auth, tests/auth, scripts/verify-auth.sh, HERMES_LOOP_STATE.md
+stop when: la même commande échoue deux fois pour deux causes différentes ou une décision produit est requise</code></pre>
+<h3>06. Planifier avec cron</h3>
+<pre><code class="language-bash">hermes cron create &quot;every weekday at 08:30&quot; \
+  &quot;Use skill verify-auth-loop. Read HERMES_LOOP_STATE.md, run scripts/verify-auth.sh, fix if safe, otherwise report blocked.&quot; \
+  --workdir /home/me/projects/acme \
+  --skill verify-auth-loop \
+  --name &quot;auth-quality-loop&quot;</code></pre>
+<h3>07. Passer à Kanban seulement si nécessaire</h3>
+<p>Ne passez à Kanban que si la boucle devient multi-rôles : recherche, implémentation, review, documentation, human-in-the-loop.</p>
+<div class="mermaid">flowchart LR
+    M[Run manuel fiable] --> S[Skill]
+    S --> G[/goal]
+    G --> C[Cron]
+    C --> K{Plusieurs rôles ?}
+    K -- non --> C
+    K -- oui --> B[Kanban]</div>
+<hr>
+<h2>Modèle de boucle Hermes complète</h2>
+<div class="mermaid">flowchart TB
+    subgraph Projet[Projet]
+      A[AGENTS.md]
+      E[HERMES_LOOP_STATE.md]
+      V[scripts/verify.sh]
+    end
+
+    subgraph Hermes[Profil Hermes coder]
+      S[Skill verify-loop]
+      G[/goal avec contrat]
+      C[Cron schedule]
+      W[Worktree]
+      P[Prompt cache stable]
+    end
+
+    subgraph Controle[Contrôle]
+      T[Tests / lint / typage]
+      R[Reviewer humain]
+      Sec[Security audit]
+    end
+
+    C --> S
+    S --> G
+    G --> W
+    A --> G
+    E --> G
+    V --> T
+    W --> T
+    T -- OK --> R
+    T -- KO --> G
+    R --> E
+    Sec --> R</div>
+<hr>
+<h2>Garde-fous de production</h2>
+<table>
+<thead>
+<tr>
+<th>Risque</th>
+<th>Garde-fou Hermes / process</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Objectif vague</td>
+<td><code>/goal</code> avec contrat : verify, constraints, boundaries, stop_when</td>
+</tr>
+<tr>
+<td>Boucle infinie</td>
+<td><code>goals.max_turns</code>, pause automatique, <code>/goal clear</code></td>
+</tr>
+<tr>
+<td>Coût invisible</td>
+<td><code>hermes insights</code>, <code>hermes prompt-size</code>, modèles auxiliaires moins chers</td>
+</tr>
+<tr>
+<td>Contexte trop lourd</td>
+<td>AGENTS.md court, skills ciblés, désactiver toolsets inutiles</td>
+</tr>
+<tr>
+<td>Prompt cache cassé</td>
+<td>Éviter de modifier SOUL / AGENTS / toolsets au milieu d&#39;une longue boucle</td>
+</tr>
+<tr>
+<td>Auto-validation</td>
+<td>Commande de vérification externe + preuve écrite</td>
+</tr>
+<tr>
+<td>Secrets exposés</td>
+<td>redaction, <code>hermes secrets</code>, éviter logs verbeux, audit régulier</td>
+</tr>
+<tr>
+<td>Permissions trop larges</td>
+<td>Profils séparés, backends sandboxés, pas <code>--yolo</code> sauf environnement jetable</td>
+</tr>
+<tr>
+<td>Conflits branches</td>
+<td><code>--worktree</code>, branches dédiées, PR draft</td>
+</tr>
+<tr>
+<td>Dette de compréhension</td>
+<td>Diff review humaine obligatoire avant merge</td>
+</tr>
+</tbody></table>
+<h3>Commandes de surveillance utiles</h3>
+<pre><code class="language-bash">hermes status
+hermes logs
+hermes insights
+hermes prompt-size
+hermes security audit
+hermes checkpoints
+hermes sessions
+hermes cron
+hermes kanban</code></pre>
+<hr>
+<h2>Patterns prêts à l&#39;emploi</h2>
+<h3>Pattern 1 — Rapport quotidien sans modification</h3>
+<table>
+<thead>
+<tr>
+<th>Élément</th>
+<th>Choix</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Primitive</td>
+<td><code>cron</code></td>
+</tr>
+<tr>
+<td>Outils</td>
+<td>GitHub / web / fichiers read-only</td>
+</tr>
+<tr>
+<td>Sortie</td>
+<td>Telegram, Slack ou fichier local</td>
+</tr>
+<tr>
+<td>Risque</td>
+<td>Faible</td>
+</tr>
+</tbody></table>
+<pre><code class="language-bash">hermes cron create &quot;every weekday at 09:00&quot; \
+  &quot;Summarize open PRs, failing CI, and blockers. Do not modify files.&quot; \
+  --workdir /home/me/projects/acme \
+  --name &quot;daily-engineering-brief&quot;</code></pre>
+<h3>Pattern 2 — Correction bornée avec preuve</h3>
+<table>
+<thead>
+<tr>
+<th>Élément</th>
+<th>Choix</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Primitive</td>
+<td><code>/goal</code></td>
+</tr>
+<tr>
+<td>Porte</td>
+<td>script <code>verify.sh</code></td>
+</tr>
+<tr>
+<td>Isolation</td>
+<td><code>--worktree --checkpoints</code></td>
+</tr>
+<tr>
+<td>Sortie</td>
+<td>diff + preuve</td>
+</tr>
+</tbody></table>
+<pre><code class="language-bash">coder chat --worktree --checkpoints</code></pre>
+<p>Puis :</p>
+<pre><code class="language-text">/goal Corriger uniquement les erreurs de lint dans src/auth
+verify: bash scripts/verify-auth.sh passe
+constraints: ne pas modifier les tests sauf ajout d'un test de régression justifié
+boundaries: src/auth, tests/auth, scripts/verify-auth.sh
+stop when: erreur de design ou changement d'API nécessaire</code></pre>
+<h3>Pattern 3 — Pipeline multi-agent</h3>
+<table>
+<thead>
+<tr>
+<th>Étape</th>
+<th>Profil</th>
+<th>Kanban task</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Analyse</td>
+<td><code>researcher</code></td>
+<td>Trouver cause + fichiers probables</td>
+</tr>
+<tr>
+<td>Implémentation</td>
+<td><code>coder</code></td>
+<td>Correctif borné en worktree</td>
+</tr>
+<tr>
+<td>Vérification</td>
+<td><code>reviewer</code></td>
+<td>Relire diff + lancer tests</td>
+</tr>
+<tr>
+<td>Synthèse</td>
+<td><code>writer</code></td>
+<td>Résumer pour PR</td>
+</tr>
+</tbody></table>
+<p>Kanban devient utile quand la coordination elle-même doit être durable.</p>
+<hr>
+<h2>Erreurs qui transforment Hermes en gouffre</h2>
+<table>
+<thead>
+<tr>
+<th>Erreur</th>
+<th>Symptôme</th>
+<th>Correction</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Utiliser <code>/goal</code> sans preuve</td>
+<td>“✓ done” alors que rien ne prouve</td>
+<td>Ajouter <code>verify:</code> explicite</td>
+</tr>
+<tr>
+<td>Mettre trop de contexte dans AGENTS.md</td>
+<td>Coût fixe élevé à chaque tour</td>
+<td>Déplacer les procédures en skills</td>
+</tr>
+<tr>
+<td>Installer trop de skills / outils</td>
+<td>Prompt-size énorme</td>
+<td><code>hermes prompt-size</code>, désinstaller / désactiver</td>
+</tr>
+<tr>
+<td>Confondre profil et sandbox</td>
+<td>Agent touche hors projet</td>
+<td><code>terminal.cwd</code>, Docker/Modal/Daytona, permissions OS</td>
+</tr>
+<tr>
+<td>Lancer cron sur tâche non vérifiable</td>
+<td>Rapports confiants mais faux</td>
+<td>Préférer rapport read-only ou porte scriptée</td>
+</tr>
+<tr>
+<td>Utiliser Kanban trop tôt</td>
+<td>Bureaucratie agentique</td>
+<td>Rester sur <code>/goal</code> + skill</td>
+</tr>
+<tr>
+<td>Ne pas relire les diffs</td>
+<td>Dette de compréhension</td>
+<td>PR draft + review humaine</td>
+</tr>
+<tr>
+<td>Utiliser <code>--yolo</code> localement</td>
+<td>Commandes dangereuses sans frein</td>
+<td>Réserver à un sandbox jetable</td>
+</tr>
+<tr>
+<td>Faire vérifier par le même agent</td>
+<td>Biais auto-préférentiel</td>
+<td>Reviewer séparé, script externe</td>
+</tr>
+<tr>
+<td>Laisser les logs verbeux</td>
+<td>Tokens + fuite secrets</td>
+<td>Filtrer, résumer, redaction</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Conclusion</h2>
+<p>Hermes est probablement l&#39;un des outils actuels les plus intéressants pour les boucles, parce qu&#39;il ne se limite pas à “appeler un modèle avec des outils”. Il assemble déjà les briques qui manquent d&#39;habitude : mémoire, skills, profils, cron, <code>/goal</code>, Kanban, gateway, dashboard, intégrations et backends persistants.</p>
+<p>Mais la conclusion pratique est sobre :</p>
+<p><strong>La bonne boucle Hermes minimale = un profil + un AGENTS.md court + un skill + un fichier d&#39;état + une porte objective + un plafond.</strong></p>
+<p>L&#39;ordre compte :</p>
+<ol>
+<li>faire un run manuel fiable ;</li>
+<li>transformer le workflow en skill ;</li>
+<li>ajouter <code>/goal</code> avec contrat ;</li>
+<li>planifier avec cron ;</li>
+<li>passer à Kanban seulement quand plusieurs rôles doivent collaborer ;</li>
+<li>garder la revue humaine avant merge ou action irréversible.</li>
+</ol>
+<p>Hermes donne une boucle. Votre travail est de lui donner une <strong>borne</strong>, une <strong>preuve</strong> et une <strong>mémoire lisible</strong>.</p>
+
+        </main>
+    </div>
+
+    <script src="../script.js" defer></script>
+    <script src="../nav.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" defer crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" defer crossorigin="anonymous"></script>
+    <script src="../content-enhance.js" defer></script>
+</body>
+</html>

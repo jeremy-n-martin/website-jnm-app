@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Les boucles avec Claude — pratique — Jeremy N. Martin">
+    <meta name="theme-color" content="#ffe6f2">
+    <title>Les boucles avec Claude — pratique — Jeremy N. Martin</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32x32.png">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" crossorigin="anonymous">
+</head>
+<body>
+    <canvas id="plexus-canvas" aria-hidden="true"></canvas>
+    <div class="containermain">
+        <header class="site-header">
+            <a href="../index.html" class="site-title">Jeremy N. Martin</a>
+            <nav class="site-nav" id="site-nav" data-depth="1" aria-label="Navigation principale"></nav>
+        </header>
+        <main class="prose">
+            <p>Ce guide couvre la <strong>mise en pratique avec Claude Code et l&#39;Agent SDK</strong> : boucle d&#39;exécution, configuration du dépôt, automations, hooks et contrôles de production.</p>
+<hr>
+<h2>La boucle d&#39;exécution (sous le capot)</h2>
+<p>Claude Code et l&#39;<strong>Agent SDK</strong> partagent le même moteur : vous envoyez un prompt, l&#39;agent évalue, agit via des outils, intègre les résultats, et recommence. Votre boucle produit (automation, <code>/loop</code>, cron) enchaîne plusieurs de ces sessions ; à l&#39;intérieur de chacune, c&#39;est toujours le même cycle.</p>
+<div class="mermaid">flowchart LR
+    P["1 · Recevoir<br/>prompt + historique<br/>+ outils"] --> E["2 · Évaluer<br/>texte et/ou<br/>appels d'outils"]
+    E -->|Outils demandés| T["3 · Exécuter<br/>les outils"]
+    T -->|Résultats| E
+    E -->|Réponse sans outil| R["4 · Résultat<br/>texte + coût"]
+
+    style P fill:#f8f5ff,stroke:#7c3aed
+    style E fill:#edf8e8,stroke:#5b9b45
+    style T fill:#fff7f2,stroke:#f0a06f
+    style R fill:#dff1ff,stroke:#0787ff</div>
+<h3>Tours et messages</h3>
+<p>Un <strong>tour</strong> = un aller-retour complet dans la boucle : Claude produit des appels d&#39;outils, le SDK les exécute, les résultats reviennent automatiquement — <strong>sans</strong> rendre la main à votre code. Les tours s&#39;enchaînent jusqu&#39;à une réponse sans appel d&#39;outil.</p>
+<p>Exemple pour « Corriger les tests en échec dans auth.ts » :</p>
+<table>
+<thead>
+<tr>
+<th>Tour</th>
+<th>Ce qui se passe</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>1</td>
+<td><code>Bash</code> lance <code>npm test</code> → 3 échecs</td>
+</tr>
+<tr>
+<td>2</td>
+<td><code>Read</code> sur <code>auth.ts</code> et <code>auth.test.ts</code></td>
+</tr>
+<tr>
+<td>3</td>
+<td><code>Edit</code> corrige <code>auth.ts</code>, puis <code>Bash</code> relance les tests → OK</td>
+</tr>
+<tr>
+<td>Final</td>
+<td>Réponse texte seule : « Bug corrigé, les 3 tests passent. »</td>
+</tr>
+</tbody></table>
+<p>Une question simple (« quels fichiers ici ? ») tient en 1–2 tours. Un refactor peut en enchaîner des dizaines.</p>
+<p><strong>SDK</strong> (Agent SDK) — Package autonome (<code>claude_agent_sdk</code> en Python, <code>@anthropic-ai/claude-agent-sdk</code> en TypeScript) qui embarque la boucle de Claude Code dans vos propres apps : outils, permissions, limites de coût, hooks. Pas besoin du CLI installé.</p>
+<h3>Limiter la boucle interne</h3>
+<p>Sans plafond, l&#39;agent tourne jusqu&#39;à ce qu&#39;il estime avoir fini — acceptable pour une tâche bornée, risqué pour « améliore ce codebase ».</p>
+<table>
+<thead>
+<tr>
+<th>Option SDK</th>
+<th>Rôle</th>
+<th>Équivalent boucle produit</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>max_turns</code> / <code>maxTurns</code></td>
+<td>Plafond de tours avec outils</td>
+<td>Nombre max d&#39;itérations</td>
+</tr>
+<tr>
+<td><code>max_budget_usd</code> / <code>maxBudgetUsd</code></td>
+<td>Plafond de dépense</td>
+<td>Budget tokens / coût</td>
+</tr>
+</tbody></table>
+<p>Quand une limite est atteinte, le SDK renvoie un <code>ResultMessage</code> — vérifiez toujours <code>subtype</code> avant de lire <code>result</code> :</p>
+<table>
+<thead>
+<tr>
+<th><code>subtype</code></th>
+<th>Signification</th>
+<th><code>result</code> disponible ?</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>success</code></td>
+<td>Tâche terminée normalement</td>
+<td>Oui</td>
+</tr>
+<tr>
+<td><code>error_max_turns</code></td>
+<td>Plafond de tours atteint</td>
+<td>Non — reprendre via <code>session_id</code></td>
+</tr>
+<tr>
+<td><code>error_max_budget_usd</code></td>
+<td>Plafond de budget atteint</td>
+<td>Non</td>
+</tr>
+<tr>
+<td><code>error_during_execution</code></td>
+<td>Erreur API ou annulation</td>
+<td>Non</td>
+</tr>
+</tbody></table>
+<h3>Outils intégrés</h3>
+<p>Sans outils, Claude ne peut que répondre en texte. Avec outils, il lit, modifie, exécute, cherche :</p>
+<table>
+<thead>
+<tr>
+<th>Catégorie</th>
+<th>Outils</th>
+<th>Usage</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Fichiers</td>
+<td>Read, Edit, Write</td>
+<td>Lire, modifier, créer</td>
+</tr>
+<tr>
+<td>Recherche</td>
+<td>Glob, Grep</td>
+<td>Trouver fichiers et contenu</td>
+</tr>
+<tr>
+<td>Exécution</td>
+<td>Bash</td>
+<td>Commandes, scripts, git</td>
+</tr>
+<tr>
+<td>Web</td>
+<td>WebSearch, WebFetch</td>
+<td>Recherche et fetch de pages</td>
+</tr>
+<tr>
+<td>Orchestration</td>
+<td>Agent, Skill, TaskCreate…</td>
+<td>Sous-agents, skills, suivi de tâches</td>
+</tr>
+</tbody></table>
+<p>Les outils en lecture seule (Read, Glob, Grep) peuvent s&#39;exécuter <strong>en parallèle</strong> ; Edit, Write et Bash passent en <strong>séquentiel</strong> pour éviter les conflits.</p>
+<h3>Permissions : ce qui tourne vraiment en autonome</h3>
+<p>Trois leviers combinés :</p>
+<table>
+<thead>
+<tr>
+<th>Levier</th>
+<th>Effet</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>allowed_tools</code></td>
+<td>Auto-approuve les outils listés (ex. <code>[&quot;Read&quot;, &quot;Glob&quot;, &quot;Grep&quot;]</code> pour un agent lecture seule)</td>
+</tr>
+<tr>
+<td><code>disallowed_tools</code></td>
+<td>Bloque des outils, quelle que soit la config</td>
+</tr>
+<tr>
+<td><code>permission_mode</code></td>
+<td>Comportement par défaut pour le reste</td>
+</tr>
+</tbody></table>
+<p>Modes utiles pour les boucles :</p>
+<table>
+<thead>
+<tr>
+<th>Mode</th>
+<th>Comportement</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>default</code></td>
+<td>Demande approbation via callback — bon pour une UI interactive</td>
+</tr>
+<tr>
+<td><code>acceptEdits</code></td>
+<td>Auto-approuve les edits fichiers et commandes fs courantes ; Bash reste filtré</td>
+</tr>
+<tr>
+<td><code>dontAsk</code></td>
+<td>Ne demande jamais : outils pré-approuvés seulement, le reste est refusé</td>
+</tr>
+<tr>
+<td><code>bypassPermissions</code></td>
+<td>Tout passe — <strong>uniquement</strong> en CI, conteneur ou environnement isolé</td>
+</tr>
+</tbody></table>
+<p>Quand un outil est refusé, Claude reçoit un message de rejet et tente une autre approche.</p>
+<h3>Contexte, compaction et hooks</h3>
+<p>Le <strong>contexte ne se réinitialise pas entre les tours</strong> d&#39;une même session : prompt système, définitions d&#39;outils, historique, entrées/sorties d&#39;outils — tout s&#39;accumule. Les gros fichiers lus ou les logs verbeux peuvent consommer des milliers de tokens en un tour.</p>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Impact</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>CLAUDE.md</code> / skills</td>
+<td>Rechargés à chaque requête (mis en cache après le premier appel)</td>
+</tr>
+<tr>
+<td>Historique de conversation</td>
+<td>Croît à chaque tour</td>
+</tr>
+<tr>
+<td>Sorties d&#39;outils volumineuses</td>
+<td>Principal facteur de dérive sur longues sessions</td>
+</tr>
+</tbody></table>
+<p>Quand la fenêtre de contexte approche sa limite, le SDK <strong>compacte</strong> : résume l&#39;historique ancien et émet un événement <code>compact_boundary</code>. Les instructions persistantes appartiennent dans <code>CLAUDE.md</code> ou un skill — pas seulement dans le prompt initial, qui peut disparaître à la compaction.</p>
+<p><strong>Hooks</strong> (callbacks hors contexte, donc sans coût tokens) :</p>
+<table>
+<thead>
+<tr>
+<th>Hook</th>
+<th>Moment</th>
+<th>Usage typique en boucle</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>PreToolUse</td>
+<td>Avant exécution</td>
+<td>Bloquer une commande dangereuse</td>
+</tr>
+<tr>
+<td>PostToolUse</td>
+<td>Après retour</td>
+<td>Auditer, déclencher un side-effect</td>
+</tr>
+<tr>
+<td>Stop</td>
+<td>Fin de session</td>
+<td>Valider le résultat, écrire <code>STATE.md</code></td>
+</tr>
+<tr>
+<td>PreCompact</td>
+<td>Avant compaction</td>
+<td>Archiver le transcript complet</td>
+</tr>
+<tr>
+<td>SubagentStart / Stop</td>
+<td>Sous-agent</td>
+<td>Agréger des résultats parallèles</td>
+</tr>
+</tbody></table>
+<p><strong>Garder le contexte léger</strong> : sous-agents pour les sous-tâches (contexte frais, seul le résumé remonte), outils au strict nécessaire, <code>effort: &quot;low&quot;</code> pour les tâches simples (listings, grep).</p>
+<p><strong>Exemple SDK minimal</strong> (Python) — agent autonome avec limites et outils pré-approuvés :</p>
+<pre><code class="language-python">from claude_agent_sdk import query, ClaudeAgentOptions, ResultMessage
+
+async for message in query(
+    prompt=&quot;Corriger les tests en échec dans le module auth&quot;,
+    options=ClaudeAgentOptions(
+        allowed_tools=[&quot;Read&quot;, &quot;Edit&quot;, &quot;Bash&quot;, &quot;Glob&quot;, &quot;Grep&quot;],
+        setting_sources=[&quot;project&quot;],  # CLAUDE.md, skills, hooks
+        max_turns=30,
+        effort=&quot;high&quot;,
+    ),
+):
+    if isinstance(message, ResultMessage):
+        if message.subtype == &quot;success&quot;:
+            print(message.result)
+        elif message.subtype == &quot;error_max_turns&quot;:
+            print(f&quot;Limite de tours — reprendre session {message.session_id}&quot;)</code></pre>
+<hr>
+<h2>Configuration du dépôt Claude Code</h2>
+<p>Une boucle durable s&#39;appuie sur des <strong>fichiers versionnés</strong> dans le dépôt. Voici l&#39;arborescence typique :</p>
+<div class="mermaid">flowchart LR
+
+%% =========================
+%% GAUCHE : ARBORESCENCE
+%% =========================
+
+ROOT["📁 Racine du projet"]
+
+ROOT --> CLAUDE["📄 CLAUDE.md"]
+ROOT --> CLAUDE_LOCAL["📄 CLAUDE.local.md"]
+ROOT --> MCP["📄 .mcp.json"]
+ROOT --> CLAUDE_DIR["📁 .claude/"]
+
+CLAUDE_DIR --> SETTINGS["📄 settings.json"]
+CLAUDE_DIR --> SETTINGS_LOCAL["📄 settings.local.json"]
+
+CLAUDE_DIR --> RULES["📁 rules/"]
+RULES --> CODE_STYLE["📄 code-style.md"]
+RULES --> TESTING["📄 testing.md"]
+RULES --> API_CONVENTIONS["📄 api-conventions.md"]
+
+CLAUDE_DIR --> COMMANDS["📁 commands/"]
+COMMANDS --> REVIEW["📄 review.md"]
+COMMANDS --> FIX_ISSUE["📄 fix-issue.md"]
+
+CLAUDE_DIR --> SKILLS["📁 skills/"]
+SKILLS --> DEPLOY["📁 deploy/"]
+DEPLOY --> SKILL_MD["📄 SKILL.md"]
+DEPLOY --> DEPLOY_CONFIG["📄 deploy-config.md"]
+
+CLAUDE_DIR --> AGENTS["📁 agents/"]
+AGENTS --> CODE_REVIEWER["📄 code-reviewer.md"]
+AGENTS --> SECURITY_AUDITOR["📄 security-auditor.md"]
+
+CLAUDE_DIR --> HOOKS["📁 hooks/"]
+HOOKS --> VALIDATE_BASH["📄 validate-bash.sh"]
+
+%% =========================
+%% DROITE : RÔLES
+%% =========================
+
+CLAUDE --> D_CLAUDE["<b>CLAUDE.md</b><br/>• Chargé au démarrage de session<br/>• Vue d'ensemble, stack, commandes<br/>• Conventions et architecture<br/>• CLAUDE.local.md pour les overrides perso"]
+
+MCP --> D_MCP["<b>.mcp.json</b><br/>• Config des intégrations MCP<br/>• GitHub, Jira, Slack, bases…<br/>• Partagé en équipe via git"]
+
+SETTINGS --> D_SETTINGS["<b>settings.json</b><br/>• Permissions et accès outils<br/>• Modèle, hooks, effort<br/>• settings.local.json pour les overrides"]
+
+RULES --> D_RULES["<b>rules/</b><br/>• Fichiers .md modulaires par thème<br/>• Style, tests, design d'API<br/>• Peut cibler des chemins précis"]
+
+COMMANDS --> D_COMMANDS["<b>commands/</b><br/>• Commandes slash : /project:&lt;name&gt;<br/>• Workflows répétables<br/>• Peut exécuter du shell"]
+
+SKILLS --> D_SKILLS["<b>skills/</b><br/>• Déclenchés selon le contexte de tâche<br/>• Contenu complet chargé à l'invocation<br/>• Garde le contexte léger entre-temps"]
+
+AGENTS --> D_AGENTS["<b>agents/</b><br/>• Sous-agents spécialisés par rôle<br/>• Fenêtre de contexte isolée<br/>• Outils et modèle configurables"]
+
+HOOKS --> D_HOOKS["<b>hooks/</b><br/>• Scripts événementiels : pre/post outil<br/>• Validation, lint, formatage<br/>• Bloque les opérations dangereuses"]
+
+%% =========================
+%% STYLES
+%% =========================
+
+classDef file fill:#ffffff,stroke:#111,stroke-width:1px,color:#111;
+classDef folder fill:#e8f5e9,stroke:#111,stroke-width:2px,color:#111;
+classDef detail fill:#111,stroke:#111,stroke-width:1px,color:#fff;
+classDef root fill:#d7f5c5,stroke:#111,stroke-width:2px,color:#111;
+
+class ROOT root;
+class CLAUDE,CLAUDE_LOCAL,MCP,SETTINGS,SETTINGS_LOCAL,CODE_STYLE,TESTING,API_CONVENTIONS,REVIEW,FIX_ISSUE,SKILL_MD,DEPLOY_CONFIG,CODE_REVIEWER,SECURITY_AUDITOR,VALIDATE_BASH file;
+class CLAUDE_DIR,RULES,COMMANDS,SKILLS,DEPLOY,AGENTS,HOOKS folder;
+class D_CLAUDE,D_MCP,D_SETTINGS,D_RULES,D_COMMANDS,D_SKILLS,D_AGENTS,D_HOOKS detail;</div>
+<p>Les fichiers <code>.local</code> et <code>settings.local.json</code> restent hors git (overrides personnels). Le reste est versionné et alimente chaque run de la boucle.</p>
+<h3>Prompt, projet ou skill ?</h3>
+<p>Trois niveaux de persistance — du plus éphémère au plus structuré. Une boucle mature combine <strong>projet</strong> (<code>CLAUDE.md</code> + <code>.claude/</code>) + <strong>skills</strong> (processus répétitifs) ; le prompt seul ne suffit pas.</p>
+<table>
+<thead>
+<tr>
+<th>Critère</th>
+<th>Prompt</th>
+<th>Projet (<code>CLAUDE.md</code> + <code>.claude/</code>)</th>
+<th>Skills</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Idée générale</strong></td>
+<td>Instructions données à chaque conversation.</td>
+<td>Espace projet avec fichiers et instructions persistantes.</td>
+<td>Processus enseigné une fois, réutilisable automatiquement.</td>
+</tr>
+<tr>
+<td><strong>Où ça vit</strong></td>
+<td>Dans le chat ou la session courante.</td>
+<td>Dans le dépôt : <code>CLAUDE.md</code>, <code>.claude/</code>, versionné.</td>
+<td><code>.claude/skills/&lt;nom&gt;/SKILL.md</code>, chargé à la demande.</td>
+</tr>
+<tr>
+<td><strong>Mise en place</strong></td>
+<td>Aucune — vous tapez directement.</td>
+<td>~5 min : créer les fichiers projet de base.</td>
+<td>~15 min : rédiger la skill, tester, committer.</td>
+</tr>
+<tr>
+<td><strong>Mémoire / contexte</strong></td>
+<td>Rien ne persiste entre les sessions.</td>
+<td>Instructions et fichiers relus à chaque requête (mis en cache).</td>
+<td>Description courte toujours visible ; contenu complet à l&#39;invocation.</td>
+</tr>
+<tr>
+<td><strong>Automatisation</strong></td>
+<td>Non — vous répétez les consignes.</td>
+<td>Non — il faut lancer la session dans le bon dépôt.</td>
+<td>Oui — Claude reconnaît la tâche et invoque la skill.</td>
+</tr>
+<tr>
+<td><strong>Workflow</strong></td>
+<td>Vous redonnez les étapes à chaque fois.</td>
+<td>Étapes stockées dans <code>CLAUDE.md</code>, <code>rules/</code> ou <code>commands/</code>.</td>
+<td>Workflow intégré étape par étape dans la skill.</td>
+</tr>
+<tr>
+<td><strong>Qualité de sortie</strong></td>
+<td>Variable, dépend du prompt du moment.</td>
+<td>Plus constante — contexte projet stable.</td>
+<td>Très constante sur les tâches répétitives.</td>
+</tr>
+<tr>
+<td><strong>Économie de tokens</strong></td>
+<td>Faible — longs prompts à chaque fois.</td>
+<td>Moyenne — vous évitez de tout répéter.</td>
+<td>Bonne — seul le nécessaire est chargé.</td>
+</tr>
+<tr>
+<td><strong>Meilleur usage</strong></td>
+<td>Tâches rapides, ponctuelles.</td>
+<td>Sessions longues, style, architecture, mémoire projet.</td>
+<td>Processus structurés que vous refaites souvent (triage CI, deploy, review).</td>
+</tr>
+<tr>
+<td><strong>Image mentale</strong></td>
+<td>Expliquer chaque matin votre travail à un inconnu.</td>
+<td>Donner un classeur d&#39;onboarding à un nouvel employé.</td>
+<td>Former un employé une fois pour qu&#39;il applique toujours le processus.</td>
+</tr>
+<tr>
+<td><strong>Dans une boucle</strong></td>
+<td>Suffit pour un run manuel ponctuel.</td>
+<td>Socle obligatoire — état + spec + permissions.</td>
+<td>Cœur du run automatisé — c&#39;est la skill qui encode le processus.</td>
+</tr>
+</tbody></table>
+<p>Pour une boucle viable : <code>CLAUDE.md</code> pour le socle, une skill pour le workflow, <code>STATE.md</code> pour l&#39;état, hooks <code>Stop</code> pour persister entre les runs.</p>
+<hr>
+<h2>Automations Claude : <code>/loop</code> et <code>/goal</code></h2>
+<p>Les automations transforment une exécution unique en <strong>vraie boucle</strong>. Avec Claude Code :</p>
+<table>
+<thead>
+<tr>
+<th>Mécanisme</th>
+<th>Usage</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>/loop</code></td>
+<td>Relance sur une cadence en session</td>
+</tr>
+<tr>
+<td><code>/goal</code></td>
+<td>Continue jusqu&#39;à ce qu&#39;une condition soit vraie (vérifiée par un modèle indépendant)</td>
+</tr>
+<tr>
+<td>Tâches planifiées Desktop</td>
+<td>Runs récurrents hors session active</td>
+</tr>
+<tr>
+<td>Routines cloud</td>
+<td>Automations hébergées</td>
+</tr>
+<tr>
+<td>Hooks</td>
+<td><code>Stop</code> → écrire l&#39;état, <code>PreToolUse</code> → bloquer une commande</td>
+</tr>
+</tbody></table>
+<p>Deux primitives à distinguer :</p>
+<ul>
+<li><strong><code>/loop</code></strong> — relance sur une cadence. Pour des vérifications régulières, quel que soit l&#39;état.</li>
+<li><strong><code>/goal</code></strong> — continue jusqu&#39;à ce qu&#39;une condition écrite soit <strong>vraiment</strong> vraie. Un petit modèle séparé vérifie la complétion : celui qui a écrit le code ne le note pas.</li>
+</ul>
+<p><strong>Exemple concret :</strong></p>
+<pre><code>&gt; /loop 30m /goal Tous les tests dans test/auth passent et le lint est propre.
+  Scanner src/auth pour les nouveaux échecs, proposer des correctifs dans claude/auth-fixes,
+  ouvrir une PR brouillon quand la condition /goal est remplie.
+
+▲ Claude
+  CronCreate(*/30 * * * * : boucle qualité auth)
+  Condition d'arrêt : tests OK + lint propre (vérifié par un contrôleur indépendant)
+✓ Planifié. Continue au-delà des complétions intermédiaires
+  jusqu'à ce que la condition /goal soit atteinte par le vérificateur.</code></pre>
+<hr>
+<h2>Worktrees avec Claude Code</h2>
+<table>
+<thead>
+<tr>
+<th>Mécanisme</th>
+<th>Usage</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>git worktree</code></td>
+<td>Checkout séparé manuel</td>
+</tr>
+<tr>
+<td><code>--worktree</code></td>
+<td>Flag CLI pour isoler la session</td>
+</tr>
+<tr>
+<td><code>isolation: worktree</code></td>
+<td>Option sur un sous-agent — checkout éphémère auto-nettoyé</td>
+</tr>
+</tbody></table>
+<p>Les worktrees éliminent les collisions mécaniques entre agents parallèles. Votre bande passante de revue fixe le plafond du parallélisme réel.</p>
+<hr>
+<h2>Skills Claude</h2>
+<p>Un <strong>Skill</strong> vit dans <code>.claude/skills/&lt;nom&gt;/SKILL.md</code>. Sans skills ni <code>CLAUDE.md</code>, chaque cycle redérive tout le contexte depuis zéro — et la compaction peut effacer les instructions données uniquement dans le chat.</p>
+<p><strong>Exemple complet — triage CI :</strong></p>
+<pre><code>name: ci-triage
+description: Classifier les échecs CI par cause (env, flake, bug réel,
+  dépendance, infra), brouillonner les correctifs simples, escalader le reste.
+  Déclenché à chaque échec de workflow ou lors de la boucle de triage matinale.
+---
+
+# Skill CI triage
+
+## Règles de classification
+- env : secret manquant, mauvaise variable, infra non provisionnée → humain
+- flake : passe au retry sans changement de code → retry une fois, puis dossier
+- bug : échec déterministe lié à un commit récent → brouillon de correctif
+- dependency : échec lié à un bump de version → brouillon de rollback
+- infra : timeout, OOM, problème de runner → escalade
+
+## Patterns de correctif
+- Tests auth → vérifier src/auth/middleware en premier
+- Tests base de données → vérifier que la migration est appliquée en CI
+- Tests E2E → vérifier les sélecteurs contre le dernier snapshot UI
+
+## Interdits
+- Désactiver des tests en échec — toujours escalader
+- Modifier la config CI sans approbation humaine
+- Toucher src/payments/ ou src/billing/ (voir claude/permissions.md)
+
+## État
+Mettre à jour STATE.md après chaque run : fichiers vérifiés, classifications,
+PR ouvertes, éléments escaladés.</code></pre>
+<hr>
+<h2>Connecteurs MCP</h2>
+<p>Configurez les serveurs dans <code>.mcp.json</code> à la racine du dépôt. Chaque serveur MCP ajoute des schémas d&#39;outils au contexte — limitez le nombre de serveurs et d&#39;outils exposés.</p>
+<p><strong>Connecteurs les plus rentables pour les boucles Claude :</strong></p>
+<table>
+<thead>
+<tr>
+<th>Connecteur</th>
+<th>Usage typique</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>GitHub</strong></td>
+<td>Lire les dépôts, créer des branches, ouvrir des PR, commenter, réagir aux webhooks</td>
+</tr>
+<tr>
+<td><strong>Linear / Jira</strong></td>
+<td>Mettre à jour les tickets, lier les PR, fermer automatiquement quand la vérif passe</td>
+</tr>
+<tr>
+<td><strong>Slack</strong></td>
+<td>Poster les résultats de triage, alerter sur les escalades, résumer les runs nocturnes</td>
+</tr>
+<tr>
+<td><strong>Sentry</strong></td>
+<td>Investiguer les alertes live, brouillonner des correctifs pour les erreurs fréquentes</td>
+</tr>
+</tbody></table>
+<hr>
+<h2>Sous-agents Claude</h2>
+<p>Sous-agents dans <code>.claude/agents/</code> ou via l&#39;outil <code>Agent</code>. Chaque sous-agent démarre avec un <strong>contexte frais</strong> : pas l&#39;historique du parent, seul son résumé final remonte.</p>
+<p><strong>Répartition habituelle</strong> : un explore, un implémente, un vérifie contre la spec.</p>
+<p>Dans une boucle non surveillée, un vérificateur de confiance est la seule raison de pouvoir s&#39;éloigner. Les sous-agents consomment plus de tokens — dépensez-les là où un second avis vaut le coût, pas pour du travail que <code>Glob</code> + <code>Grep</code> suffisent à faire.</p>
+<hr>
+<h2>Fichier d&#39;état et reprise de session</h2>
+<p>L&#39;agent oublie. Le fichier, non. Sauvegardez aussi le <code>session_id</code> du SDK pour reprendre une session interrompue par <code>error_max_turns</code>.</p>
+<p><strong>Exemple <code>STATE.md</code> :</strong></p>
+<pre><code># État de boucle · ci-triage
+
+## Dernier run
+2026-06-09 03:30 UTC · 7 échecs classifiés, 3 correctifs brouillonnés, 4 escaladés
+
+## En cours
+- claude/fix-auth-token-refresh — tests OK en local, en attente CI
+- claude/fix-flaky-payment-webhook — pattern de retry appliqué, surveillance
+
+## Terminé aujourd'hui
+- claude/bump-axios-1.7.4 → mergé (CI verte, boucle deps vérifiée)
+- claude/lint-fix-pass-june-9 → mergé
+
+## Escaladé aux humains
+- src/billing/refund.ts — tests en échec de 3 façons, cause racine floue
+- ci/staging-runner — timeouts infra, pas un problème de code
+
+## Leçons apprises (écrire ici, pas dans le chat)
+- 2026-06-08 : PowerShell pose un souci TLS 1.2 sur ce runner Windows. Utiliser bash.
+- 2026-06-07 : tests/e2e/checkout exige le secret webhook Stripe en env. Ignorer si absent.
+
+## Conditions d'arrêt atteintes depuis la dernière revue
+- /goal « tous les tests passent + lint propre » atteint au commit 3a7b8c1 à 02:14 UTC</code></pre>
+<p>Associez un hook <code>Stop</code> pour écrire <code>STATE.md</code> automatiquement à la fin de chaque run.</p>
+<hr>
+<h2>Contrôles SDK pour la production</h2>
+<table>
+<thead>
+<tr>
+<th>Paramètre</th>
+<th>Valeur indicative</th>
+<th>Pourquoi</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>max_turns</code></td>
+<td>20–50 selon la tâche</td>
+<td>Évite les sessions qui partent en vrille</td>
+</tr>
+<tr>
+<td><code>max_budget_usd</code></td>
+<td>plafond par run</td>
+<td>Facture prévisible</td>
+</tr>
+<tr>
+<td><code>allowed_tools</code></td>
+<td>liste minimale</td>
+<td>Moins de surface d&#39;attaque, moins de contexte</td>
+</tr>
+<tr>
+<td><code>permission_mode</code></td>
+<td><code>acceptEdits</code> (dev) / <code>dontAsk</code> + allow list (CI)</td>
+<td>Autonomie sans tout ouvrir</td>
+</tr>
+<tr>
+<td><code>effort</code></td>
+<td><code>low</code> pour triage, <code>high</code> pour debug</td>
+<td>Coût/latence vs profondeur de raisonnement</td>
+</tr>
+<tr>
+<td>Hook <code>Stop</code></td>
+<td>écrire <code>STATE.md</code></td>
+<td>État toujours à jour entre les runs</td>
+</tr>
+</tbody></table>
+<p><strong>L&#39;ordre compte</strong> : run manuel fiable → skill → boucle → planification. Sauter des étapes, c&#39;est payer pour un système que personne ne comprend.</p>
+<hr>
+<h2>Coûts, tokens et modèles</h2>
+<p>Les boucles consomment des tokens à chaque tour : prompt système, <code>CLAUDE.md</code>, définitions d&#39;outils, historique, sorties d&#39;outils volumineuses. Ce n&#39;est pas une dépense unique — c&#39;est un <strong>flux récurrent</strong>.</p>
+<h3>Ce qui coûte le plus</h3>
+<table>
+<thead>
+<tr>
+<th>Poste</th>
+<th>Pourquoi</th>
+<th>Levier</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Tours nombreux</td>
+<td>Chaque tour recharge le contexte accumulé</td>
+<td><code>max_turns</code>, tâches bornées, sous-agents pour isoler</td>
+</tr>
+<tr>
+<td>Sorties d&#39;outils lourdes</td>
+<td><code>Read</code> d&#39;un gros fichier, <code>Bash</code> verbeux</td>
+<td>Limiter la lecture, filtrer les logs, <code>Grep</code> avant <code>Read</code></td>
+</tr>
+<tr>
+<td>Sous-agents</td>
+<td>Chaque agent = sa propre session + modèle</td>
+<td>Réserver aux vérifications et tâches complexes</td>
+</tr>
+<tr>
+<td>MCP excessif</td>
+<td>Schémas d&#39;outils dans chaque requête</td>
+<td>Peu de serveurs, ToolSearch si disponible</td>
+</tr>
+<tr>
+<td>Effort élevé</td>
+<td>Plus de raisonnement par tour</td>
+<td><code>effort: &quot;low&quot;</code> pour triage, <code>&quot;high&quot;</code> pour debug seulement</td>
+</tr>
+<tr>
+<td>Retries sans porte</td>
+<td>L&#39;agent explore en boucle sans livrer</td>
+<td>Porte objective + <code>max_budget_usd</code></td>
+</tr>
+</tbody></table>
+<h3>Comment monitorer</h3>
+<table>
+<thead>
+<tr>
+<th>Source</th>
+<th>Ce qu&#39;elle donne</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>ResultMessage.total_cost_usd</code> (SDK)</td>
+<td>Coût par session, même en cas d&#39;erreur</td>
+</tr>
+<tr>
+<td><code>ResultMessage.usage</code></td>
+<td>Détail input/output/cache par run</td>
+</tr>
+<tr>
+<td>Métrique <strong>coût / changement accepté</strong></td>
+<td>Le seul indicateur business utile — pas les tokens tentés</td>
+</tr>
+<tr>
+<td>Dashboard Anthropic / facturation forfait</td>
+<td>Vue globale hors SDK</td>
+</tr>
+<tr>
+<td><code>STATE.md</code></td>
+<td>Journaliser coût et tours par run de boucle</td>
+</tr>
+</tbody></table>
+<p>Plafonds recommandés : <code>max_budget_usd</code> par run, <code>max_turns</code> par session, budget mensuel par équipe, alerte si le taux d&#39;acceptation tombe sous 50 %.</p>
+<p><strong>Prompt caching</strong> — Le contenu stable (<code>CLAUDE.md</code>, définitions d&#39;outils inchangées) est mis en cache par l&#39;API : le premier appel paie plein tarif, les suivants sont nettement moins chers. Un <code>CLAUDE.md</code> bien structuré et stable amortit vite ses tokens.</p>
+<h3>Ollama, modèles locaux et Claude</h3>
+<p><strong>Non, on ne branche pas Ollama sur Claude Code comme moteur de remplacement.</strong> Claude Code et l&#39;Agent SDK appellent les modèles <strong>Anthropic</strong> (Claude) via l&#39;API officielle. Ollama sert à exécuter des modèles open source <strong>en local</strong> (Llama, Mistral, Qwen…) via une API compatible OpenAI — c&#39;est une stack parallèle, pas un plugin Claude.</p>
+<table>
+<thead>
+<tr>
+<th>Approche</th>
+<th>Rôle dans une architecture de boucle</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>Claude Code / SDK</strong></td>
+<td>Agent principal : édition, outils, boucle complète</td>
+</tr>
+<tr>
+<td><strong>Ollama (local)</strong></td>
+<td>Tâches cheap en marge : classification, résumé, pré-filtrage avant d&#39;appeler Claude</td>
+</tr>
+<tr>
+<td><strong>Modèle léger Anthropic (Haiku)</strong></td>
+<td>Vérificateur <code>/goal</code>, checker indépendant — même écosystème, moins cher</td>
+</tr>
+<tr>
+<td><strong>LiteLLM / proxy custom</strong></td>
+<td>Routage multi-fournisseurs côté infra — hors scope Claude Code natif ; à réserver aux intégrations maison</td>
+</tr>
+</tbody></table>
+<p>Stratégie pragmatique pour réduire la facture sans sacrifier la qualité :</p>
+<ol>
+<li><strong>Haiku</strong> (ou effort <code>low</code>) pour le contrôleur ; <strong>Sonnet/Opus</strong> pour le faiseur.</li>
+<li><strong>Sous-agents</strong> uniquement quand un second avis vaut le coût.</li>
+<li><strong><code>max_budget_usd</code></strong> et <strong><code>max_turns</code></strong> sur chaque automation.</li>
+<li><strong>Skills</strong> au lieu de prompts longs — charge ciblée.</li>
+<li><strong>Ollama en amont</strong> (optionnel) pour trier, résumer ou classer avant d&#39;envoyer le reste à Claude — utile sur gros volumes, pas comme substitut à la boucle d&#39;édition.</li>
+</ol>
+<p>Un proxy non officiel vers Ollama à la place de l&#39;API Anthropic n&#39;est pas supporté par Claude Code. Pour du 100 % local, utilisez des outils conçus pour (Continue, Aider, OpenCode…) — avec d&#39;autres compromis qualité/outils.</p>
+<hr>
+<h2>Conclusion</h2>
+<p>Avec Claude Code et l&#39;Agent SDK, la boucle d&#39;exécution (tours d&#39;outils, compaction, hooks) est le moteur ; <code>/loop</code>, <code>/goal</code>, skills et <code>STATE.md</code> en sont l&#39;orchestration.</p>
+<p>Construisez petit : <code>CLAUDE.md</code> + une skill + <code>STATE.md</code> + une porte objective. Plafonnez chaque run (<code>max_budget_usd</code>, <code>max_turns</code>), et gardez le contexte léger.</p>
+<p>Pour le cadre conceptuel complet, voir <a href="loop-theorie.md">loop-theorie.md</a>.</p>
+
+        </main>
+    </div>
+
+    <script src="../script.js" defer></script>
+    <script src="../nav.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" defer crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" defer crossorigin="anonymous"></script>
+    <script src="../content-enhance.js" defer></script>
+</body>
+</html>

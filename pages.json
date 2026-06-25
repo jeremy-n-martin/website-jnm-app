@@ -1,0 +1,22 @@
+[
+  {
+    "slug": "loop-theorie",
+    "label": "Théorie",
+    "title": "Les boucles — théorie"
+  },
+  {
+    "slug": "loop-claude",
+    "label": "Claude",
+    "title": "Les boucles avec Claude — pratique"
+  },
+  {
+    "slug": "loop-hermes",
+    "label": "Hermes",
+    "title": "Les boucles avec Hermes — pratique"
+  },
+  {
+    "slug": "loop-openclaw",
+    "label": "OpenClaw",
+    "title": "Les boucles avec OpenClaw — pratique"
+  }
+]
