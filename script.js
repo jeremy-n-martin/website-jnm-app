@@ -10,7 +10,9 @@
         return;
     }
 
-    const ctx = canvas.getContext('2d');
+    canvas.style.background = 'transparent';
+
+    const ctx = canvas.getContext('2d', { alpha: true });
     if (!ctx) {
         canvas.remove();
         return;
@@ -19,7 +21,7 @@
     const MAX_PARTICLES = 150;
     const CONNECTION_DISTANCE = 100;
     const MOUSE_RADIUS = 150;
-    const PARTICLE_COLOR = '#FFFFFF';
+    const PARTICLE_COLOR = '#6e6e73';
 
     let particles = [];
     let animationId = null;
@@ -72,7 +74,7 @@
 
         const t = distance / maxDistance;
         const opacity = 1 - t * t * t;
-        ctx.strokeStyle = `rgba(255, 255, 255, ${opacity})`;
+        ctx.strokeStyle = `rgba(110, 110, 115, ${opacity})`;
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(x1, y1);
