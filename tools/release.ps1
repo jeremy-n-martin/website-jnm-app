@@ -242,6 +242,95 @@ function New-GameSkeleton([string]$proj, [string]$title, [string]$slug) {
     return $game
 }
 
+# ---------- signatures (Android) ----------
+
+function Expand-Home([string]$p) { return $p -replace '^~', $HOME }
+
+# Réglage de l'éditeur Godot, pris dans le fichier de la version la plus récente qui le définit.
+function Read-EditorSetting([string]$key) {
+    $files = Get-ChildItem (Join-Path $env:APPDATA 'Godot') -Filter 'editor_settings-*.tres' -ErrorAction SilentlyContinue |
+        Sort-Object { try { [version]($_.BaseName -replace '^editor_settings-', '') } catch { [version]'0.0' } } -Descending
+    foreach ($f in $files) {
+        $m = Select-String $f.FullName -Pattern ('^' + [regex]::Escape($key) + ' = "(.+)"$') | Select-Object -First 1
+        if ($m) { return $m.Matches[0].Groups[1].Value -replace '\\\\', '\' }
+    }
+    return $null
+}
+
+function Get-Keytool {
+    foreach ($jdk in @((Read-EditorSetting 'export/android/java_sdk_path'), $env:JAVA_HOME) | Where-Object { $_ }) {
+        $k = Join-Path $jdk 'bin/keytool.exe'
+        if (Test-Path $k) { return $k }
+    }
+    return (Get-Command keytool -ErrorAction SilentlyContinue)?.Source
+}
+
+function Get-Apksigner {
+    $sdk = Read-EditorSetting 'export/android/android_sdk_path'
+    if (-not $sdk -or -not (Test-Path $sdk)) { return $null }
+    $tools = Get-ChildItem (Join-Path $sdk 'build-tools') -Directory -ErrorAction SilentlyContinue |
+        Sort-Object { try { [version]$_.Name } catch { [version]'0.0' } } -Descending
+    foreach ($d in $tools) { $a = Join-Path $d.FullName 'apksigner.bat'; if (Test-Path $a) { return $a } }
+    return $null
+}
+
+# Le preset signe-t-il avec la clé de debug de Godot (ou sans clé) ? Une clé choisie pour le projet est respectée.
+function Test-DebugKeystore($preset) {
+    $ks = "$($preset.options['keystore/release'])"
+    return (-not $ks) -or ($ks -match 'debug\.keystore$')
+}
+
+function Get-KeystoreSha256([string]$keytool, [string]$ks, [string]$alias, [string]$password) {
+    $out = & $keytool '-J-Duser.language=en' -list -v -keystore $ks -alias $alias -storepass $password 2>&1 | Out-String
+    $m = [regex]::Match($out, 'SHA256:\s*([0-9A-F:]+)')
+    if (-not $m.Success) { return $null }
+    return ($m.Groups[1].Value -replace ':', '').ToLowerInvariant()
+}
+
+# Clé de signature Android propre au jeu, hors du projet : <keystoresDir>/<slug>.keystore + <slug>.json
+# (alias, mot de passe, empreinte). À sauvegarder : sans elle, aucune mise à jour ne s'installe par-dessus.
+function Get-ReleaseKey([string]$slug, [switch]$Create) {
+    $dir = Expand-Home $Config.keystoresDir
+    $ks = Join-Path $dir "$slug.keystore"
+    $meta = Join-Path $dir "$slug.json"
+    if ((Test-Path $ks) -and (Test-Path $meta)) {
+        $m = Get-Content $meta -Raw | ConvertFrom-Json
+        return @{ path = $ks; alias = $m.alias; password = $m.password; sha256 = $m.sha256 }
+    }
+    if (-not $Create) { return $null }
+    if (Test-Path $ks) { Fail "Clé $ks présente sans son fichier $slug.json : ne pas la recréer, retrouve le mot de passe." }
+    $keytool = Get-Keytool
+    if (-not $keytool) { Warn 'Android : keytool introuvable (JDK), clé du jeu non créée.'; return $null }
+    New-Item -ItemType Directory -Force $dir | Out-Null
+    $chars = [char[]]'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
+    $password = -join ([Security.Cryptography.RandomNumberGenerator]::GetBytes(32) | ForEach-Object { $chars[$_ % $chars.Length] })
+    & $keytool '-J-Duser.language=en' -genkeypair -keystore $ks -storetype PKCS12 -alias $slug -keyalg RSA -keysize 4096 -validity 36500 `
+        -storepass $password -keypass $password -dname "CN=$($Config.publisher), O=jnm.app, C=FR" 2>&1 | Out-Null
+    $sha = if (Test-Path $ks) { Get-KeystoreSha256 $keytool $ks $slug $password }
+    if ($LASTEXITCODE -ne 0 -or -not $sha) {
+        Remove-Item $ks -Force -ErrorAction SilentlyContinue
+        Warn 'Android : création de la clé du jeu échouée.'
+        return $null
+    }
+    [ordered]@{ alias = $slug; password = $password; sha256 = $sha; created = (Get-Date -Format 'yyyy-MM-dd') } |
+        ConvertTo-Json | Set-Content $meta -Encoding utf8NoBOM
+    return @{ path = $ks; alias = $slug; password = $password; sha256 = $sha }
+}
+
+# Empreinte SHA-256 du certificat qui signe un APK (null si apksigner est introuvable).
+function Get-ApkCertSha256([string]$apk) {
+    $signer = Get-Apksigner
+    if (-not $signer) { return $null }
+    $jdk = Read-EditorSetting 'export/android/java_sdk_path'
+    $hadJava = [bool]$env:JAVA_HOME
+    if (-not $hadJava -and $jdk) { $env:JAVA_HOME = $jdk.TrimEnd('\') }
+    try { $out = & $signer verify --print-certs $apk 2>&1 | Out-String }
+    finally { if (-not $hadJava) { Remove-Item Env:JAVA_HOME -ErrorAction SilentlyContinue } }
+    $m = [regex]::Match($out, 'Signer #1 certificate SHA-256 digest: ([0-9a-f]{64})')
+    if ($m.Success) { return $m.Groups[1].Value }
+    return $null
+}
+
 # ---------- R2 (rclone) ----------
 
 function Initialize-R2 {
@@ -307,6 +396,8 @@ function Invoke-Build {
     }
 
     $files = [ordered]@{}
+    $androidKey = $null
+    $androidCert = $null
     foreach ($p in $Platforms) {
         $tmp = Join-Path $stage "_$p"
         New-Item -ItemType Directory -Force $tmp | Out-Null
@@ -320,7 +411,15 @@ function Invoke-Build {
             $ext = @{ windows = 'exe'; android = 'apk'; macos = 'zip' }[$p]
             Step "$p : export « $($preset['name']) »"
             $log = Join-Path $stage "$p-export.log"
-            & $godot --headless --path $proj --export-release $preset['name'] (Join-Path $tmp "$slug.$ext") *> $log
+            # Android : la clé du jeu remplace celle de debug, passée par l'environnement (rien d'écrit dans le projet).
+            if ($p -eq 'android' -and (Test-DebugKeystore $preset)) { $androidKey = Get-ReleaseKey $slug }
+            if ($p -eq 'android' -and $androidKey) {
+                $env:GODOT_ANDROID_KEYSTORE_RELEASE_PATH = $androidKey.path
+                $env:GODOT_ANDROID_KEYSTORE_RELEASE_USER = $androidKey.alias
+                $env:GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD = $androidKey.password
+            }
+            try { & $godot --headless --path $proj --export-release $preset['name'] (Join-Path $tmp "$slug.$ext") *> $log }
+            finally { Remove-Item Env:GODOT_ANDROID_KEYSTORE_RELEASE_PATH, Env:GODOT_ANDROID_KEYSTORE_RELEASE_USER, Env:GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD -ErrorAction SilentlyContinue }
             $code = $LASTEXITCODE
             if ($code -ne 0 -or -not (Get-ChildItem $tmp -File)) {
                 Get-Content $log -Tail 15 | ForEach-Object { Info $_ }
@@ -338,10 +437,20 @@ function Invoke-Build {
                     Fail "windows : un seul .exe autonome attendu, reçu $($produced.Name -join ', '). Lance « doctor » (PCK intégré)."
                 }
                 if (-not $useExisting) { Test-Smoke $main.FullName $slug }
+                # Éditeur et nom affichés par Windows (propriétés du fichier, alerte SmartScreen).
+                $vi = (Get-Item $main.FullName).VersionInfo
+                if ($vi.CompanyName -ne $Config.publisher -or $vi.FileDescription -ne $title) {
+                    Warn "windows : le .exe indique « $($vi.CompanyName) » / « $($vi.FileDescription) » au lieu de $($Config.publisher) / $title. Lance « doctor »."
+                } else { Info "✓ .exe au nom de $($vi.CompanyName), version $($vi.ProductVersion)" }
                 $name = "$slug-v$ver-windows-x64.exe"; Move-Item $main.FullName (Join-Path $stage $name)
             }
             'android' {
                 if ($main.Extension -ne '.apk') { Fail "android : attendu un .apk, reçu $($main.Name)" }
+                $androidCert = Get-ApkCertSha256 $main.FullName
+                if (-not $androidCert) { Warn 'android : signature non vérifiée (apksigner introuvable)' }
+                elseif ($androidKey -and $androidCert -ne $androidKey.sha256) { Fail "android : l'APK n'est pas signé avec la clé du jeu ($androidCert). Rien n'est publié." }
+                elseif ($androidKey) { Info "✓ APK signé avec la clé du jeu" }
+                else { Warn 'android : APK signé avec la clé de debug de Godot (lance « doctor » pour créer la clé du jeu)' }
                 $name = "$slug-v$ver-android.apk"; Move-Item $main.FullName (Join-Path $stage $name)
             }
             'macos' {
@@ -378,7 +487,7 @@ function Invoke-Build {
         }
     }
 
-    [ordered]@{ slug = $slug; title = $title; version = $ver; project = $proj; date = (Get-Date -Format 'yyyy-MM-dd'); files = $files } |
+    [ordered]@{ slug = $slug; title = $title; version = $ver; project = $proj; date = (Get-Date -Format 'yyyy-MM-dd'); files = $files; androidCert = $androidCert } |
         ConvertTo-Json -Depth 6 | Set-Content (Join-Path $stage 'release.json') -Encoding utf8NoBOM
 
     if (-not $game) {
@@ -514,6 +623,7 @@ function Invoke-Publish {
     if (-not $game) { $game = New-GameSkeleton $proj $title $slug }
 
     Step "Publication de $title v$($rel.version)"
+    if ($game.Contains('hidden') -and $game.hidden) { Warn 'Jeu dépublié (« hidden » dans game.json) : la version sera envoyée mais restera invisible sur le site.' }
     if (-not $SkipUpload) {
         $bucket = Initialize-R2
         foreach ($p in $rel.files.Keys) {
@@ -537,6 +647,10 @@ function Invoke-Publish {
         Warn 'SkipUpload : rien n''est envoyé, la fiche pointe vers des fichiers absents.'
     }
 
+    if (-not $SkipUpload) {
+        try { Submit-VirusTotal $dir $rel.files } catch { Warn "VirusTotal : analyse ignorée ($($_.Exception.Message))" }
+    }
+
     $entry = [ordered]@{
         version   = $rel.version
         date      = $rel.date
@@ -548,6 +662,19 @@ function Invoke-Publish {
     $old = $game.versions | Where-Object { $_.version -eq $rel.version } | Select-Object -First 1
     if ($old -and -not $Notes) { $entry.notes = $old.notes }
     if ($old -and -not $Milestone) { $entry.milestone = [bool]$old.milestone }
+    # Changement de clé Android (passage de la clé de debug à celle du jeu) : Android refuse la mise à jour
+    # par-dessus, il faut désinstaller l'ancienne version. On le dit dans les notes de cette version.
+    if ($rel.androidCert -and $rel.files.Contains('android')) {
+        $prevCert = if ($game.Contains('androidCert')) { $game.androidCert } else { $null }
+        $hadAndroid = @($game.versions | Where-Object { $_.version -ne $rel.version -and $_.files -and $_.files.Contains('android') }).Count -gt 0
+        if ($hadAndroid -and $prevCert -ne $rel.androidCert) {
+            # guillemets doubles : PowerShell prendrait l'apostrophe typographique pour une fin de chaîne
+            $keyNote = "Android : nouvelle signature de l’application. Désinstalle l’ancienne version avant d’installer celle-ci (la progression sur le téléphone repart de zéro)."
+            $entry.notes = (@($entry.notes, $keyNote) | Where-Object { $_ }) -join "`n`n"
+            Warn 'android : signature différente des versions précédentes, note ajoutée à la version'
+        }
+        $game.androidCert = $rel.androidCert
+    }
     $game.versions = @($entry) + @($game.versions | Where-Object { $_.version -ne $rel.version })
 
     # Rétention : on garde les $Keep dernières versions + les jalons ; les autres ne sont plus téléchargeables.
@@ -576,6 +703,33 @@ function Invoke-Publish {
         if ($LASTEXITCODE -ne 0) { Fail 'git push a échoué.' }
         Remove-Item $dir -Recurse -Force
         Info "https://jnm.app/jeux/$slug/ (en ligne d'ici 1 à 2 minutes)"
+    }
+}
+
+# Envoi facultatif à VirusTotal (clé gratuite dans virustotalSecrets : VT_API_KEY=…).
+# Chaque fichier analysé reçoit un lien public ; un échec n'empêche jamais la publication.
+function Submit-VirusTotal([string]$dir, $files) {
+    $path = Expand-Home $Config.virustotalSecrets
+    if (-not (Test-Path $path)) { Info 'VirusTotal : pas de clé, analyse ignorée'; return }
+    $line = Get-Content $path | Where-Object { $_ -match '^\s*VT_API_KEY\s*=' } | Select-Object -First 1
+    $key = if ($line) { ($line -replace '^\s*VT_API_KEY\s*=\s*', '').Trim().Trim('"') } else { '' }
+    if (-not $key) { Warn "VirusTotal : VT_API_KEY absent de $path"; return }
+    $h = @{ 'x-apikey' = $key }
+    $api = 'https://www.virustotal.com/api/v3'
+    foreach ($p in @($files.Keys)) {
+        $f = $files[$p]
+        if ($f.size -gt 640MB) { Warn "VirusTotal : $p trop gros pour l'analyse gratuite"; continue }
+        try {
+            $known = Invoke-WebRequest "$api/files/$($f.sha256)" -Headers $h -SkipHttpErrorCheck -TimeoutSec 30
+            if ($known.StatusCode -eq 404) {
+                $url = if ($f.size -gt 32MB) { (Invoke-RestMethod "$api/files/upload_url" -Headers $h -TimeoutSec 30).data } else { "$api/files" }
+                Start-Sleep -Seconds 16   # API gratuite : 4 requêtes par minute
+                Invoke-RestMethod $url -Method Post -Headers $h -Form @{ file = Get-Item (Join-Path $dir (Split-Path $f.file -Leaf)) } -TimeoutSec 1800 | Out-Null
+            } elseif ($known.StatusCode -ne 200) { throw "réponse $($known.StatusCode)" }
+            $f.virustotal = "https://www.virustotal.com/gui/file/$($f.sha256)"
+            Info "VirusTotal : $p $(if ($known.StatusCode -eq 200) { 'déjà connu' } else { 'envoyé pour analyse' })"
+        } catch { Warn "VirusTotal : $p non envoyé ($($_.Exception.Message))" }
+        Start-Sleep -Seconds 16
     }
 }
 
@@ -696,6 +850,17 @@ function Invoke-Doctor {
     if ($w) {
         if (Set-PresetOption $proj $w 'binary_format/embed_pck' 'true') { Info 'Windows : PCK intégré (exe autonome)'; $fixed++ }
         if (Set-PresetOption $proj $w 'binary_format/architecture' '"x86_64"') { Info 'Windows : architecture x64'; $fixed++ }
+        # Nom, éditeur et icône écrits dans le .exe : sans ça, Windows affiche « Godot Engine » et un éditeur inconnu.
+        $title = Read-ProjectSetting $proj 'config/name'
+        $meta = [ordered]@{
+            'application/modify_resources' = 'true'
+            'application/company_name'     = "`"$($Config.publisher)`""
+            'application/product_name'     = "`"$title`""
+            'application/file_description' = "`"$title`""
+        }
+        if (-not $w.options['application/copyright']) { $meta['application/copyright'] = "`"© $((Get-Date).Year) $($Config.publisher)`"" }
+        $changed = @($meta.Keys | Where-Object { Set-PresetOption $proj $w $_ $meta[$_] })
+        if ($changed) { Info "Windows : nom, éditeur et icône écrits dans le .exe ($($Config.publisher))"; $fixed++ }
     } else { Warn 'Pas de preset Windows Desktop' }
     $m = Find-Preset $presets 'macos'
     if ($m) {
@@ -706,7 +871,13 @@ function Invoke-Doctor {
     $a = Find-Preset $presets 'android'
     if ($a) {
         if (Set-PresetOption $proj $a 'architectures/arm64-v8a' 'true') { Info 'Android : ARM64 activé'; $fixed++ }
-        if (-not $a.options['keystore/release']) { Warn 'Android : aucun keystore de release (les mises à jour ne s''installeront pas par-dessus)' }
+        if (Test-DebugKeystore $a) {
+            $slug = Find-Slug $proj (Read-ProjectSetting $proj 'config/name')
+            $had = [bool](Get-ReleaseKey $slug)
+            $key = Get-ReleaseKey $slug -Create
+            if ($key -and -not $had) { Info "Android : clé du jeu créée ($($key.path)). Sauvegarde le dossier $(Split-Path $key.path -Parent) : sans lui, plus de mise à jour possible."; $fixed++ }
+            elseif (-not $key) { Warn 'Android : APK signé avec la clé de debug de Godot (mises à jour non garanties)' }
+        }
     } else { Warn 'Pas de preset Android' }
     if (-not (Read-ProjectSetting $proj 'config/version')) { Warn 'config/version absent de project.godot (« bump » l''ajoutera)' }
     $shown = Get-ChildItem $proj -Recurse -Include *.gd, *.tscn -ErrorAction SilentlyContinue |

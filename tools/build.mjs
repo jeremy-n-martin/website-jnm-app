@@ -10,6 +10,8 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = join(ROOT, 'dist');
 const GAMES_DIR = join(ROOT, 'content', 'games');
 const SITE = JSON.parse(readFileSync(join(ROOT, 'content', 'site.json'), 'utf8'));
+// Service des demandes (feedback/) ; FEEDBACK_API permet de viser un service local pour les essais.
+const FEEDBACK_API = (process.env.FEEDBACK_API ?? SITE.feedbackApi ?? '').replace(/\/$/, '');
 
 const STATIC = ['index.html', '404.html', 'CNAME', 'favicon.ico', 'profile.png', 'script.js', 'styles.css', 'icons', 'images', 'assets'];
 
@@ -175,8 +177,9 @@ function dashboard(games) {
     const chip = (group, value, label, active = false) => `<button type="button" class="chip${active ? ' is-active' : ''}" data-group="${group}" data-value="${esc(value)}" aria-pressed="${active}">${label}</button>`;
     const body = `    <div class="page">
         <nav class="crumbs"><a href="/">Jeremy N. Martin</a></nav>
-        <header class="hero">
+        <header class="hero hero-row">
             <h1 class="vt-jeux">Jeux</h1>
+            ${FEEDBACK_API ? '<a class="hero-link" href="/jeux/ameliorations/">Améliorations, bugs, idées →</a>' : ''}
         </header>
         <div class="toolbar">
             <input type="search" id="q" placeholder="Rechercher un jeu…" aria-label="Rechercher un jeu" autocomplete="off">
@@ -207,11 +210,29 @@ ${games.map(card).join('\n')}
     });
 }
 
+// Guides pas à pas, un par plateforme, avec les libellés exacts des avertissements.
+const steps = (items, after = '') => `<ol>${items.map((s) => `<li>${s}</li>`).join('')}</ol>${after}`;
 const INSTALL = {
-    windows: 'Lance le fichier <code>.exe</code>, aucune installation. Windows peut afficher « Windows a protégé votre ordinateur » car le jeu n’est pas signé : clique sur <strong>Informations complémentaires</strong> puis <strong>Exécuter quand même</strong>.',
-    android: 'Ouvre le fichier <code>.apk</code> sur ton téléphone. Android demande d’autoriser l’installation depuis cette source (navigateur ou gestionnaire de fichiers) : accepte, puis installe. Les mises à jour s’installent par-dessus sans perdre la progression.',
-    macos: 'Décompresse le <code>.zip</code> puis glisse l’app dans Applications. Le jeu n’est pas notarisé : au premier lancement, fais <strong>clic droit → Ouvrir</strong>, puis confirme. Si macOS dit que l’app est « endommagée », lance dans le Terminal : <code>xattr -cr "/Applications/Nom du jeu.app"</code>.',
+    windows: (g) => steps([
+        'Si le navigateur prévient que le fichier « n’est pas souvent téléchargé », choisis <strong>Conserver</strong> (dans Edge : <strong>…</strong> → <strong>Conserver</strong>, puis <strong>Afficher plus</strong> → <strong>Conserver quand même</strong>).',
+        'Lance le fichier <code>.exe</code>. Si Windows affiche « Windows a protégé votre ordinateur », clique sur <strong>Informations complémentaires</strong>, puis sur <strong>Exécuter quand même</strong>.',
+        'C’est tout : rien à installer, le jeu s’ouvre directement. Tu peux ranger le fichier où tu veux.',
+    ]),
+    android: (g) => steps([
+        'Télécharge le fichier <code>.apk</code> depuis ton téléphone. Si le navigateur dit que ce type de fichier peut être dangereux, choisis <strong>Télécharger quand même</strong>.',
+        'Ouvre le fichier. La première fois, Android demande l’autorisation d’installer depuis cette source : touche <strong>Paramètres</strong>, active <strong>Autoriser cette source</strong>, puis reviens en arrière.',
+        'Touche <strong>Installer</strong>. Si Play Protect signale une application inconnue, touche <strong>Plus de détails</strong>, puis <strong>Installer quand même</strong>.',
+        'Les versions suivantes s’installent par-dessus, sans perdre ta progression.',
+    ]),
+    macos: (g) => steps([
+        'Ouvre le <code>.zip</code> téléchargé (il se décompresse tout seul), puis glisse l’app dans <strong>Applications</strong>.',
+        `Lance-la. macOS dit ne pas pouvoir vérifier l’app : clique sur <strong>Terminé</strong> (ou <strong>OK</strong>).`,
+        'Ouvre <strong>Réglages Système</strong> → <strong>Confidentialité et sécurité</strong>, descends jusqu’au message sur le jeu, clique sur <strong>Ouvrir quand même</strong> et confirme avec ton mot de passe. Sur macOS 14 ou plus ancien, il suffit de faire un clic droit sur l’app → <strong>Ouvrir</strong> → <strong>Ouvrir</strong>.',
+        'Les lancements suivants se font normalement.',
+    ], `<p class="muted">Si macOS dit que l’app est « endommagée », ouvre le Terminal et lance : <code>xattr -cr "/Applications/${esc(g.title)}.app"</code></p>`),
 };
+
+const INSTALL_WHY = 'Windows, macOS et Android se méfient de tout ce qui ne vient pas de leur boutique ou d’un éditeur qui paie leur certification. Ces avertissements ne veulent pas dire que le jeu est dangereux : chaque fichier est publié avec son empreinte SHA-256, qui permet de vérifier qu’il n’a pas été modifié.';
 
 function downloadRow(p, f, primary = false) {
     return `<a class="dl${primary ? ' dl-primary' : ''}" href="${esc(fileUrl(f))}" data-platform="${p}" download>
@@ -250,7 +271,7 @@ function gamePage(g) {
 
     const versions = g.versions.map((ver) => {
         const files = ver.available !== false ? Object.keys(PLATFORMS).filter((p) => ver.files?.[p]) : [];
-        return `<li>
+        return `<li data-version="${esc(ver.version)}">
                     <div class="ver-head"><strong>v${esc(ver.version)}</strong><span>${humanDate(ver.date)}</span>${ver.milestone ? '<span class="badge">Jalon</span>' : ''}</div>
                     ${ver.notes ? `<div class="ver-notes">${md(ver.notes)}</div>` : ''}
                     ${files.length
@@ -259,7 +280,12 @@ function gamePage(g) {
                 </li>`;
     }).join('\n                ');
 
-    const checksums = g.platforms.map((p) => `<li><span>${PLATFORMS[p].label}</span><code>${esc(v.files[p].sha256 ?? '')}</code></li>`).join('');
+    const checksums = g.platforms.map((p) => {
+        const f = v.files[p];
+        const scan = f.virustotal ? ` <a class="vt" href="${esc(f.virustotal)}" rel="noopener" target="_blank">Analyse VirusTotal</a>` : '';
+        return `<li><span>${PLATFORMS[p].label}</span><span><code>${esc(f.sha256 ?? '')}</code>${scan}</span></li>`;
+    }).join('');
+    const scanned = g.platforms.some((p) => v.files[p].virustotal);
 
     const body = `    <div class="page">
         <nav class="crumbs"><a href="/">Jeremy N. Martin</a><span>/</span><a href="/jeux/">Jeux</a></nav>
@@ -288,10 +314,20 @@ function gamePage(g) {
             </div>
             <section class="install">
                 <h2>Installer</h2>
-                ${g.platforms.map((p) => `<details${p === g.platforms[0] ? ' open' : ''} data-platform="${p}"><summary>${ICONS[p]}${PLATFORMS[p].label}</summary><p>${INSTALL[p]}</p></details>`).join('\n                ')}
-                <details><summary>Empreintes SHA-256 (v${esc(v.version)})</summary><ul class="sums">${checksums}</ul></details>
+                <p class="install-why">${INSTALL_WHY}${scanned ? ' Chaque fichier est aussi analysé par VirusTotal (lien sous les empreintes).' : ''}</p>
+                ${g.platforms.map((p) => `<details${p === g.platforms[0] ? ' open' : ''} data-platform="${p}"><summary>${ICONS[p]}${PLATFORMS[p].label}</summary>${INSTALL[p](g)}</details>`).join('\n                ')}
+                <details><summary>Empreintes SHA-256${scanned ? ' et analyses' : ''} (v${esc(v.version)})</summary><ul class="sums">${checksums}</ul></details>
             </section>
-            <section class="versions">
+            ${FEEDBACK_API ? `<section class="improve" data-improve data-api="${esc(FEEDBACK_API)}" data-game="${g.slug}">
+                <h2>Améliorer ${esc(g.title)}</h2>
+                <p>Un bug, une idée, un détail qui gêne ? Chaque demande est lue, et tu peux suivre ce qu’elle devient.</p>
+                <p class="improve-stats" data-improve-stats hidden></p>
+                <div class="improve-actions">
+                    <a class="btn btn-primary" href="/jeux/ameliorations/?jeu=${g.slug}#proposer">Signaler un bug ou proposer une idée</a>
+                    <a class="btn" href="/jeux/ameliorations/?jeu=${g.slug}#demandes">Voir les demandes</a>
+                </div>
+            </section>` : ''}
+            <section class="versions" id="versions">
                 <h2>Versions</h2>
                 <ul>
                 ${versions}
@@ -309,7 +345,123 @@ function gamePage(g) {
         image,
         body,
         bodyClass: g.pixelArt ? 'pixel' : '',
-        scripts: ['/assets/releases.js'],
+        scripts: ['/assets/releases.js', '/assets/feedback.js'],
+    });
+}
+
+const STATUS_LABELS = { attente: 'En attente', prevue: 'Prévue', implementee: 'Implémentée', refusee: 'Refusée' };
+
+// Page /jeux/ameliorations/ : la démarche, le formulaire, le suivi par code et la liste publique.
+function improvementsPage(games) {
+    const catalog = games.map((g) => ({ slug: g.slug, title: g.title, version: g.latest.version, platforms: g.platforms }));
+    const steps = [
+        ['Tu proposes', 'Un bug, une idée, un détail qui gêne : tout est bon à prendre. Pas de compte, pas d’e-mail.'],
+        ['Je lis tout', 'Chaque demande est relue. Un bug est reproduit, une idée est pesée face au reste du jeu.'],
+        ['Je tranche', 'Elle passe à « Prévue » ou « Refusée », avec une réponse quand il y a quelque chose à expliquer.'],
+        ['Ça sort', 'Une fois dans le jeu, elle passe à « Implémentée », avec le numéro de la version qui l’apporte.'],
+    ];
+    const statusChip = (value, label, active = false) => `<button type="button" class="chip${active ? ' is-active' : ''}" data-status="${value}" aria-pressed="${active}">${label}<span class="chip-count" data-count="${value}"></span></button>`;
+    const body = `    <div class="page fb-page" data-feedback data-api="${esc(FEEDBACK_API)}">
+        <nav class="crumbs"><a href="/">Jeremy N. Martin</a><span>/</span><a href="/jeux/">Jeux</a></nav>
+        <header class="hero">
+            <h1>Améliorations</h1>
+            <p>Mes jeux ne sont jamais finis : ils changent par petites versions, au fil de ce que vivent ceux qui y jouent.</p>
+        </header>
+
+        <section class="fb-approach" aria-label="La démarche">
+            <ol class="fb-steps">
+                ${steps.map(([t, d], i) => `<li><span class="fb-num">${i + 1}</span><h2>${t}</h2><p>${d}</p></li>`).join('\n                ')}
+            </ol>
+            <p class="fb-why">Plutôt qu’une grosse refonte de temps en temps, chaque jeu reçoit des versions fréquentes qui corrigent, ajustent ou ajoutent un peu. Chaque changement est noté dans l’historique des versions de sa fiche. Une demande refusée n’est pas une mauvaise demande : elle peut aller contre l’esprit du jeu, en compliquer la prise en main, ou coûter trop cher pour ce qu’elle apporte.</p>
+        </section>
+
+        <section class="fb-block" id="proposer">
+            <h2>Proposer</h2>
+            <form class="fb-form" data-fb-form novalidate>
+                <div class="fb-row">
+                    <label>Jeu
+                        <select name="game" required>
+                            <option value="">Choisis un jeu…</option>
+                            ${games.map((g) => `<option value="${g.slug}">${esc(g.title)}</option>`).join('\n                            ')}
+                        </select>
+                    </label>
+                    <fieldset class="fb-kind">
+                        <legend>Type</legend>
+                        <label><input type="radio" name="kind" value="bug" checked><span>Bug</span></label>
+                        <label><input type="radio" name="kind" value="idee"><span>Idée</span></label>
+                        <label><input type="radio" name="kind" value="autre"><span>Autre</span></label>
+                    </fieldset>
+                </div>
+                <label>Titre
+                    <input name="title" required minlength="3" maxlength="120" autocomplete="off" placeholder="En une phrase">
+                </label>
+                <label>Détails
+                    <textarea name="body" rows="6" maxlength="4000" placeholder="Ce que tu faisais, ce qui s’est passé, ce que tu attendais."></textarea>
+                </label>
+                <div class="fb-row">
+                    <label>Plateforme
+                        <select name="platform">
+                            <option value="">—</option>
+                            ${Object.entries(PLATFORMS).map(([k, p]) => `<option value="${k}">${p.label}</option>`).join('')}
+                            <option value="autre">Autre</option>
+                        </select>
+                    </label>
+                    <label>Version du jeu
+                        <input name="game_version" maxlength="20" autocomplete="off" placeholder="ex. 0.008">
+                    </label>
+                </div>
+                <div class="fb-trap" aria-hidden="true"><label>Site web <input name="website" tabindex="-1" autocomplete="off"></label></div>
+                <p class="fb-privacy">Tes détails restent privés. Seul le titre, éventuellement reformulé, apparaît dans la liste publique une fois la demande relue.</p>
+                <div class="fb-actions">
+                    <button type="submit" class="btn btn-primary">Envoyer</button>
+                    <p class="fb-msg" data-fb-msg role="status" aria-live="polite"></p>
+                </div>
+            </form>
+            <div class="fb-done" data-fb-done hidden>
+                <h3>Merci, c’est envoyé.</h3>
+                <p>Ton code de suivi : <strong class="fb-code" data-fb-code></strong></p>
+                <p>Il est gardé dans ce navigateur, rubrique « Mes demandes ». Note-le pour suivre la demande depuis un autre appareil.</p>
+                <button type="button" class="btn" data-fb-again>Envoyer une autre demande</button>
+            </div>
+        </section>
+
+        <section class="fb-block" id="suivi">
+            <h2>Suivre une demande</h2>
+            <form class="fb-track" data-fb-track>
+                <input name="code" placeholder="Code de suivi" maxlength="12" autocomplete="off" aria-label="Code de suivi" spellcheck="false">
+                <button type="submit" class="btn">Voir</button>
+            </form>
+            <div data-fb-track-result></div>
+            <div class="fb-mine" data-fb-mine hidden>
+                <h3>Mes demandes</h3>
+                <ul class="fb-list" data-fb-mine-list></ul>
+            </div>
+        </section>
+
+        <section class="fb-block" id="demandes">
+            <h2>Les demandes</h2>
+            <div class="toolbar">
+                <select data-fb-filter-game aria-label="Jeu">
+                    <option value="">Tous les jeux</option>
+                    ${games.map((g) => `<option value="${g.slug}">${esc(g.title)}</option>`).join('\n                    ')}
+                </select>
+            </div>
+            <div class="filters" role="group" aria-label="État">
+                ${statusChip('', 'Toutes', true)}
+                ${Object.entries(STATUS_LABELS).map(([k, l]) => statusChip(k, l)).join('\n                ')}
+            </div>
+            <p class="muted fb-pending" data-fb-pending hidden></p>
+            <ul class="fb-list" data-fb-list></ul>
+            <p class="empty" data-fb-empty hidden>Aucune demande relue pour l’instant.</p>
+        </section>
+        <script type="application/json" id="fb-games">${JSON.stringify(catalog).replace(/</g, '\\u003c')}</script>
+    </div>`;
+    return layout({
+        title: 'Améliorations · Jeux · Jeremy N. Martin',
+        description: 'Signale un bug ou propose une idée pour mes jeux, et suis ce que devient ta demande.',
+        path: '/jeux/ameliorations/',
+        body,
+        scripts: ['/assets/feedback.js'],
     });
 }
 
@@ -325,6 +477,11 @@ const games = loadGames();
 const rel = join(DIST, 'jeux');
 mkdirSync(rel, { recursive: true });
 writeFileSync(join(rel, 'index.html'), dashboard(games));
+// La page des demandes n'existe que si le service (feedback/) est configuré dans content/site.json.
+if (FEEDBACK_API) {
+    mkdirSync(join(rel, 'ameliorations'), { recursive: true });
+    writeFileSync(join(rel, 'ameliorations', 'index.html'), improvementsPage(games));
+}
 
 for (const g of games) {
     const dir = join(rel, g.slug);
@@ -359,7 +516,7 @@ writeFileSync(join(rel, 'games.json'), JSON.stringify(games.map((g) => ({
     downloads: Object.fromEntries(g.platforms.map((p) => [p, { url: fileUrl(g.latest.files[p]), size: g.latest.files[p].size, sha256: g.latest.files[p].sha256 }])),
 })), null, 2));
 
-const urls = ['/', '/jeux/', ...games.map((g) => `/jeux/${g.slug}/`)];
+const urls = ['/', '/jeux/', ...(FEEDBACK_API ? ['/jeux/ameliorations/'] : []), ...games.map((g) => `/jeux/${g.slug}/`)];
 writeFileSync(join(DIST, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls.map((u) => `  <url><loc>${SITE.siteUrl}${u}</loc></url>`).join('\n')}

@@ -3,5 +3,8 @@
   "gamesDir": "D:/godot",
   "localBuildDir": "D:/build",
   "keep": 3,
-  "secrets": "~/.jnm/r2.env"
+  "secrets": "~/.jnm/r2.env",
+  "publisher": "Jeremy N. Martin",
+  "keystoresDir": "~/.jnm/keystores",
+  "virustotalSecrets": "~/.jnm/virustotal.env"
 }

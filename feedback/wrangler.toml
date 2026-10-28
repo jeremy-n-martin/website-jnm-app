@@ -1,0 +1,16 @@
+# Service des demandes des joueurs (api.jnm.app). Déploiement : voir feedback/README.md.
+name = "jnm-feedback"
+main = "src/index.js"
+compatibility_date = "2026-10-01"
+workers_dev = false
+routes = [{ pattern = "api.jnm.app", custom_domain = true }]
+
+[vars]
+GAMES_URL = "https://jnm.app/jeux/games.json"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "jnm-feedback"
+database_id = "A_REMPLIR"
+
+# Secrets (wrangler secret put) : ADMIN_TOKEN, IP_SALT. Jamais dans ce fichier.

@@ -508,6 +508,30 @@
     font-size: 0.92rem;
 }
 
+.install details ol {
+    margin: 0 0 0.85rem;
+    padding-left: 1.3rem;
+    color: #424245;
+    font-size: 0.92rem;
+}
+
+.install details ol li + li {
+    margin-top: 0.4rem;
+}
+
+.install-why {
+    margin: 0 0 0.9rem;
+    color: #424245;
+    font-size: 0.92rem;
+    line-height: 1.55;
+}
+
+.sums .vt {
+    margin-left: 0.4rem;
+    font-size: 0.78rem;
+    white-space: nowrap;
+}
+
 .sums {
     margin: 0 0 0.85rem;
     padding: 0;
@@ -801,15 +825,461 @@
     }
 }
 
+/* ---------- améliorations : boutons, bloc des fiches, page /jeux/ameliorations/ ---------- */
+
+.hero-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem 1.5rem;
+    max-width: none;
+}
+
+.hero-link {
+    color: var(--muted) !important;
+    font-size: 0.9rem;
+    text-decoration: none;
+}
+
+.hero-link:hover {
+    color: var(--ink) !important;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    font: inherit;
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 0.7rem;
+    background: var(--panel);
+    padding: 0.6rem 1rem;
+    text-decoration: none;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.btn:hover {
+    border-color: var(--line-strong);
+}
+
+.btn-primary {
+    border-color: var(--accent);
+    background: var(--accent);
+    color: var(--accent-ink) !important;
+}
+
+.btn-primary:hover {
+    border-color: #0062c4;
+    background: #0062c4;
+}
+
+.btn:disabled {
+    opacity: 0.55;
+    cursor: default;
+}
+
+.improve {
+    margin-top: 2.5rem;
+    max-width: 48rem;
+    padding: 1.1rem 1.25rem 1.25rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--panel);
+    backdrop-filter: blur(6px);
+}
+
+.improve h2 {
+    margin: 0 0 0.35rem;
+}
+
+.improve p {
+    margin: 0 0 0.9rem;
+    color: #424245;
+    font-size: 0.95rem;
+}
+
+.improve .improve-stats {
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.improve-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.ver-requests {
+    margin: 0.4rem 0 0;
+    padding: 0 !important;
+    border: 0 !important;
+    list-style: none;
+}
+
+.versions .ver-requests li {
+    padding: 0 0 0 1.2rem;
+    color: #424245;
+    font-size: 0.85rem;
+}
+
+.versions .ver-requests li::before {
+    content: "✓";
+    top: 0;
+    left: 0;
+    width: auto;
+    height: auto;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    color: #1f7a45;
+    font-weight: 700;
+}
+
+.fb-page {
+    max-width: 52rem;
+}
+
+.fb-steps {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.fb-steps li {
+    padding: 1rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--panel);
+    backdrop-filter: blur(6px);
+}
+
+.fb-num {
+    display: inline-grid;
+    place-items: center;
+    width: 1.6rem;
+    height: 1.6rem;
+    border-radius: 50%;
+    background: var(--ink);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 700;
+}
+
+.fb-steps h2 {
+    margin: 0.6rem 0 0.3rem;
+    color: var(--ink);
+    font-size: 1rem;
+    letter-spacing: 0;
+    text-transform: none;
+}
+
+.fb-steps p {
+    margin: 0;
+    color: #424245;
+    font-size: 0.88rem;
+    line-height: 1.5;
+}
+
+.fb-why {
+    margin: 1rem 0 0;
+    color: #424245;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.fb-block {
+    margin-top: 2.75rem;
+}
+
+.fb-block > h2 {
+    margin: 0 0 0.9rem;
+    color: var(--ink);
+    font-size: 1.35rem;
+    letter-spacing: -0.01em;
+    text-transform: none;
+}
+
+.fb-form,
+.fb-done {
+    display: grid;
+    gap: 0.9rem;
+    padding: 1.25rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--panel);
+    backdrop-filter: blur(6px);
+}
+
+.fb-done[hidden],
+.fb-form[hidden] {
+    display: none;
+}
+
+.fb-done h3,
+.fb-done p {
+    margin: 0;
+}
+
+.fb-code {
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    font-size: 1.15rem;
+    letter-spacing: 0.08em;
+}
+
+.fb-done .btn {
+    justify-self: start;
+}
+
+.fb-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.9rem;
+}
+
+.fb-form label,
+.fb-kind legend {
+    display: grid;
+    gap: 0.3rem;
+    color: var(--muted);
+    font-size: 0.82rem;
+    font-weight: 600;
+}
+
+.fb-form input,
+.fb-form select,
+.fb-form textarea,
+.fb-track input,
+.fb-block .toolbar select {
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 400;
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 0.7rem;
+    background: #fff;
+    padding: 0.6rem 0.8rem;
+}
+
+.fb-form textarea {
+    resize: vertical;
+    min-height: 7rem;
+    line-height: 1.5;
+}
+
+.fb-form input:focus,
+.fb-form select:focus,
+.fb-form textarea:focus,
+.fb-track input:focus {
+    border-color: var(--line-strong);
+    outline: none;
+}
+
+.fb-kind {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 0.4rem;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.fb-kind legend {
+    width: 100%;
+    margin-bottom: 0.3rem;
+    padding: 0;
+}
+
+.fb-kind label {
+    display: block;
+}
+
+.fb-kind input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.fb-kind span {
+    display: inline-block;
+    padding: 0.55rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #fff;
+    color: var(--ink);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.fb-kind input:checked + span {
+    border-color: var(--ink);
+    background: var(--ink);
+    color: #fff;
+}
+
+.fb-kind input:focus-visible + span {
+    outline: 3px solid var(--accent);
+    outline-offset: 2px;
+}
+
+.fb-trap {
+    position: absolute;
+    left: -10000px;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+}
+
+.fb-privacy {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.8rem;
+}
+
+.fb-actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.fb-msg {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.88rem;
+}
+
+.fb-msg.is-error {
+    color: #b3261e;
+}
+
+.fb-track {
+    display: flex;
+    gap: 0.5rem;
+    max-width: 24rem;
+    margin-bottom: 0.9rem;
+}
+
+.fb-track input {
+    flex: 1;
+    min-width: 0;
+    font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.fb-mine h3 {
+    margin: 1.25rem 0 0.6rem;
+    font-size: 1rem;
+}
+
+.fb-list {
+    display: grid;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.fb-item {
+    padding: 0.8rem 1rem;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--panel);
+    backdrop-filter: blur(6px);
+}
+
+.fb-item-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.6rem;
+}
+
+.fb-status {
+    border-radius: 999px;
+    padding: 0.1rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 650;
+}
+
+.fb-status.is-attente { background: #ececf0; color: #515154; }
+.fb-status.is-prevue { background: #e3effd; color: #0058b0; }
+.fb-status.is-implementee { background: #e2f4e8; color: #1f7a45; }
+.fb-status.is-refusee { background: #fbe9e7; color: #a1281b; }
+
+.fb-version {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.fb-version:hover {
+    text-decoration: underline;
+}
+
+.fb-meta {
+    color: var(--muted);
+    font-size: 0.8rem;
+}
+
+.fb-title {
+    margin: 0.35rem 0 0;
+    font-weight: 600;
+}
+
+.fb-body {
+    margin: 0.35rem 0 0;
+    color: #424245;
+    font-size: 0.9rem;
+    white-space: pre-line;
+}
+
+.fb-note {
+    margin: 0.5rem 0 0;
+    padding-left: 0.75rem;
+    border-left: 2px solid var(--line);
+    color: #424245;
+    font-size: 0.9rem;
+}
+
+.chip-count {
+    color: inherit;
+    opacity: 0.6;
+}
+
+.fb-pending {
+    margin: 0 0 0.6rem;
+}
+
 @media (max-width: 52rem) {
     .game-top,
     .game-body {
         grid-template-columns: 1fr;
+    }
+
+    .fb-steps {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 }
 
 @media (max-width: 30rem) {
     .toolbar {
         flex-direction: column;
+    }
+
+    .fb-steps,
+    .fb-row {
+        grid-template-columns: 1fr;
     }
 }
