@@ -1,4 +1,29 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
-  <rect width="128" height="128" rx="24" fill="#3a6b8c"/>
-  <text x="64" y="78" text-anchor="middle" font-family="system-ui,sans-serif" font-size="48" font-weight="700" fill="#fff">C</text>
+  <rect width="128" height="128" rx="24" fill="#f3f0e8"/>
+  <g transform="translate(64 64)">
+    <path d="M-34 14A37 37 0 0 1 10-36M24-28A37 37 0 0 1 22 30M8 36A37 37 0 0 1-30 22" fill="none" stroke="#2f4a3f" stroke-width="2.2" stroke-linecap="round"/>
+    <g fill="#5f7f6d">
+      <path d="M-30-6c-9-4-12-12-10-18 7 1 12 8 10 18z"/>
+      <path d="M-22-24c-3-9 1-17 7-19 3 6 0 15-7 19z"/>
+      <path d="M30 2c9-3 13-10 11-17-7 1-12 8-11 17z"/>
+      <path d="M28 18c9 2 15-2 17-9-6-3-14 0-17 9z"/>
+    </g>
+    <g fill="#9fb59a">
+      <path d="M-34 6c-10 1-15-5-15-12 7-1 13 4 15 12z"/>
+      <path d="M-6-36c-4-8-1-15 4-18 4 6 2 14-4 18z"/>
+      <path d="M-16 32c-6 7-14 8-19 4 3-6 11-8 19-4z"/>
+      <path d="M22-14c8-5 10-13 7-19-7 2-10 10-7 19z"/>
+    </g>
+    <g fill="#3f6052">
+      <path d="M-26 22c-8 3-15 0-17-6 6-3 13-1 17 6z"/>
+      <path d="M6 36c4 8 11 11 17 8-2-7-9-10-17-8z"/>
+    </g>
+    <g fill="#d99a3c">
+      <circle cx="-38" cy="-12" r="2.6"/>
+      <circle cx="16" cy="-38" r="2.4"/>
+      <circle cx="38" cy="-6" r="2.6"/>
+      <circle cx="-4" cy="40" r="2.4"/>
+    </g>
+    <text y="9" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-size="27" fill="#2f4a3f" letter-spacing="1">CP</text>
+  </g>
 </svg>

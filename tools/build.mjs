@@ -163,8 +163,8 @@ function dashboard(games) {
     const body = `    <div class="page">
         <nav class="crumbs"><a href="/">Jeremy N. Martin</a></nav>
         <header class="hero">
-            <h1>Jeux</h1>
-            <p>${games.length} jeux faits avec Godot. Tous gratuits, sans pub, sans compte : on télécharge et on joue, sur Windows, Android et macOS.</p>
+            <h1 class="vt-jeux">Jeux</h1>
+            <p>Des mondes à explorer, des énigmes à résoudre. Sur Windows, Android et macOS.</p>
         </header>
         <div class="toolbar">
             <input type="search" id="q" placeholder="Rechercher un jeu…" aria-label="Rechercher un jeu" autocomplete="off">
