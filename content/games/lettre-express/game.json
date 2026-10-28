@@ -1,0 +1,51 @@
+{
+  "title": "Lettre Express",
+  "source": "lettre",
+  "tagline": "Forme des mots avec les charbons et fais rouler le train jusqu’au terminus.",
+  "summary": "Sept charbons portent chacun une lettre. Forme des mots avec : chaque mot trouvé part dans la chaudière et fait avancer le train. La pression baisse sans arrêt, alors il faut enchaîner, sinon la locomotive s’arrête avant la gare.\n\nEn **Aventure**, tu traverses douze îles, de la côte à la montagne, avec la lettre du Capitaine Mouette à livrer. Chaque île a son personnage, son vœu à exaucer et ses conditions de route : pluie, express, charge lourde, verglas. Le **Défi du jour** donne la même grille à tout le monde, et le mode **Classique** enchaîne des niveaux de plus en plus durs.\n\n- Combos, turbo, mots dorés cachés et mots bonus : tout mot français valide rapporte, même hors de la grille.\n- Un garage de wagons à acheter et à atteler, qui changent ta façon de jouer.\n- Une vache traverse parfois la voie : siffle à temps.\n- Des succès à débloquer, une sauvegarde automatique.",
+  "controls": "- Touche (ou clique) les charbons pour former un mot, puis valide.\n- Au clavier : Entrée valide, Retour arrière efface, Échap met en pause.\n- Plus tu enchaînes vite, plus le train file : 3 étoiles si tu arrives au terminus en forme.",
+  "genres": [
+    "Mots",
+    "Arcade"
+  ],
+  "players": "Solo",
+  "language": "Français",
+  "status": "Alpha",
+  "pixelArt": true,
+  "media": {
+    "cover": "media/shot-01.webp",
+    "icon": "media/icon.png",
+    "screenshots": [
+      "media/shot-01.webp",
+      "media/shot-02.webp",
+      "media/shot-03.webp"
+    ]
+  },
+  "versions": [
+    {
+      "version": "0.005",
+      "date": "2026-10-28",
+      "notes": "Première version en ligne : Aventure sur 12 îles, Défi du jour, mode Classique, garage de wagons et succès.",
+      "milestone": false,
+      "available": true,
+      "files": {
+        "windows": {
+          "file": "lettre-express/0.005/lettre-express-v0.005-windows-x64.exe",
+          "size": 112556824,
+          "sha256": "fc65f95421e7160572253101da58f89093ac03a3941c93d5afbfa721e85f4fb3"
+        },
+        "android": {
+          "file": "lettre-express/0.005/lettre-express-v0.005-android.apk",
+          "size": 29310905,
+          "sha256": "c87892ce6ecf28081b308f7af417959a20eb7bf00798bb789b007110ffdf8bb3"
+        },
+        "macos": {
+          "file": "lettre-express/0.005/lettre-express-v0.005-macos.zip",
+          "size": 64241520,
+          "sha256": "2c4c62817880784201e3c828ca7a596329266aa563e04ad2ed558f7ca912a3f2"
+        }
+      }
+    }
+  ],
+  "androidCert": "6d1fad06797250f90ee08559c250548212af02b507368bf869d36e43c3ac7fa2"
+}
