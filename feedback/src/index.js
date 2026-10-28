@@ -91,9 +91,9 @@ async function listPublic(env, url) {
     return json({ counts, items: results });
 }
 
-async function track(env, code) {
+async function track(env, code, admin = false) {
     const row = await env.DB.prepare(
-        'SELECT code, game, kind, title, body, platform, game_version, status, note, done_version, created_at, updated_at FROM requests WHERE code = ?1',
+        `SELECT code, game, kind, title, body, platform, game_version, status, ${admin ? 'public, ' : ''}note, done_version, created_at, updated_at FROM requests WHERE code = ?1`,
     ).bind(String(code).toUpperCase()).first();
     if (!row) throw new HttpError(404, 'Aucune demande avec ce code');
     return json(row);
@@ -193,7 +193,7 @@ async function update(env, code, request) {
     binds.push(String(code).toUpperCase());
     const res = await env.DB.prepare(`UPDATE requests SET ${sets.join(', ')} WHERE code = ?${binds.length}`).bind(...binds).run();
     if (!res.meta.changes) throw new HttpError(404, 'Aucune demande avec ce code');
-    return track(env, code);
+    return track(env, code, true);
 }
 
 async function remove(env, code) {

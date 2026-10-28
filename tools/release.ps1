@@ -698,9 +698,11 @@ function Invoke-Publish {
         Step 'Mise en ligne du site'
         git -C $Site add "content/games/$slug"
         git -C $Site commit -m "release: $title v$($rel.version)" | Out-Null
-        git -C $Site pull --rebase --quiet
+        # --autostash : d'autres modifications en cours dans le dépôt ne bloquent pas la mise en ligne.
+        git -C $Site pull --rebase --autostash --quiet
+        if ($LASTEXITCODE -ne 0) { Fail "git pull a échoué : la version est sur R2, la fiche est commitée localement. Résous puis « git push » dans $Site." }
         git -C $Site push --quiet
-        if ($LASTEXITCODE -ne 0) { Fail 'git push a échoué.' }
+        if ($LASTEXITCODE -ne 0) { Fail "git push a échoué : la version est sur R2, la fiche est commitée localement. Relance « git push » dans $Site." }
         Remove-Item $dir -Recurse -Force
         Info "https://jnm.app/jeux/$slug/ (en ligne d'ici 1 à 2 minutes)"
     }
