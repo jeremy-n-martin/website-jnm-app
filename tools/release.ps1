@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Pipeline de release des jeux Godot vers jnm.app/releases (binaires sur Cloudflare R2).
+    Pipeline de release des jeux Godot vers jnm.app/jeux (binaires sur Cloudflare R2).
 
 .DESCRIPTION
     release.ps1 build   <jeu>   Exporte Windows / Android / macOS dans un dossier de préparation.
@@ -436,7 +436,7 @@ function Invoke-Publish {
         git -C $Site push --quiet
         if ($LASTEXITCODE -ne 0) { Fail 'git push a échoué.' }
         Remove-Item $dir -Recurse -Force
-        Info "https://jnm.app/releases/$slug/ (en ligne d'ici 1 à 2 minutes)"
+        Info "https://jnm.app/jeux/$slug/ (en ligne d'ici 1 à 2 minutes)"
     }
 }
 

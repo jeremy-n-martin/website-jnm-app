@@ -13,7 +13,7 @@ D:\godot\<jeu>            projet Godot (source, pas de git)
         │  release.ps1 publish    envoi R2 → game.json → rétention → build du site → commit + push
         ▼
 R2 : jnm-games/<slug>/<version>/<slug>-v<version>-{windows-x64.exe|android.apk|macos.zip}
-Site : content/games/<slug>/game.json  →  /releases/ et /releases/<slug>/
+Site : content/games/<slug>/game.json  →  /jeux/ et /jeux/<slug>/ (les anciennes adresses /releases/… redirigent)
 ```
 
 ## Commandes

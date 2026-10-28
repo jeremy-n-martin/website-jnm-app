@@ -1,4 +1,4 @@
-// Génère le site statique dans dist/ : pages d'accueil existantes + section /releases
+// Génère le site statique dans dist/ : pages d'accueil existantes + section /jeux
 // (dashboard et une fiche par jeu) à partir de content/games/<slug>/game.json.
 // Aucune dépendance : `node tools/build.mjs`.
 
@@ -133,8 +133,8 @@ ${scripts.map((s) => `    <script src="${s}" defer></script>`).join('\n')}
 
 function cover(g, cls = 'cover') {
     const src = g.media.cover ?? g.media.screenshots?.[0];
-    if (src) return `<img class="${cls}" src="/releases/${g.slug}/${src}" alt="" loading="lazy" decoding="async">`;
-    const icon = g.media.icon ? `<img src="/releases/${g.slug}/${g.media.icon}" alt="" loading="lazy">` : `<span>${esc(g.title[0])}</span>`;
+    if (src) return `<img class="${cls}" src="/jeux/${g.slug}/${src}" alt="" loading="lazy" decoding="async">`;
+    const icon = g.media.icon ? `<img src="/jeux/${g.slug}/${g.media.icon}" alt="" loading="lazy">` : `<span>${esc(g.title[0])}</span>`;
     return `<div class="${cls} cover-fallback" style="--h:${hue(g.slug)}">${icon}</div>`;
 }
 
@@ -143,7 +143,7 @@ const platformIcons = (g) => g.platforms.map((p) => `<span class="pf" title="${P
 function card(g) {
     const search = [g.title, g.tagline, ...g.genres].join(' ').toLowerCase();
     return `        <li class="game-card" data-search="${esc(search)}" data-platforms="${g.platforms.join(' ')}" data-genres="${esc(g.genres.join('|'))}" data-date="${g.latest.date ?? ''}" data-title="${esc(g.title.toLowerCase())}">
-            <a href="/releases/${g.slug}/">
+            <a href="/jeux/${g.slug}/">
                 ${cover(g)}
                 <div class="card-body">
                     <h2>${esc(g.title)}</h2>
@@ -164,7 +164,6 @@ function dashboard(games) {
         <nav class="crumbs"><a href="/">Jeremy N. Martin</a></nav>
         <header class="hero">
             <h1 class="vt-jeux">Jeux</h1>
-            <p>Des mondes à explorer, des énigmes à résoudre. Sur Windows, Android et macOS.</p>
         </header>
         <div class="toolbar">
             <input type="search" id="q" placeholder="Rechercher un jeu…" aria-label="Rechercher un jeu" autocomplete="off">
@@ -189,7 +188,7 @@ ${games.map(card).join('\n')}
     return layout({
         title: 'Jeux · Jeremy N. Martin',
         description: 'Tous mes jeux Godot, gratuits et sans pub, à télécharger pour Windows, Android et macOS.',
-        path: '/releases/',
+        path: '/jeux/',
         body,
         scripts: ['/assets/releases.js'],
     });
@@ -215,9 +214,9 @@ function gamePage(g) {
     const gallery = shots.length
         ? `<div class="gallery" data-gallery>
                 <button type="button" class="gallery-main" data-open aria-label="Agrandir la capture">
-                    <img src="/releases/${g.slug}/${shots[0]}" alt="Capture de ${esc(g.title)}" decoding="async">
+                    <img src="/jeux/${g.slug}/${shots[0]}" alt="Capture de ${esc(g.title)}" decoding="async">
                 </button>
-                ${shots.length > 1 ? `<div class="thumbs">${shots.map((s, i) => `<button type="button" class="thumb${i ? '' : ' is-active'}" data-src="/releases/${g.slug}/${s}" aria-label="Capture ${i + 1}"><img src="/releases/${g.slug}/${s}" alt="" loading="lazy"></button>`).join('')}</div>` : ''}
+                ${shots.length > 1 ? `<div class="thumbs">${shots.map((s, i) => `<button type="button" class="thumb${i ? '' : ' is-active'}" data-src="/jeux/${g.slug}/${s}" aria-label="Capture ${i + 1}"><img src="/jeux/${g.slug}/${s}" alt="" loading="lazy"></button>`).join('')}</div>` : ''}
             </div>`
         : `<div class="gallery">${cover(g, 'gallery-fallback')}</div>`;
 
@@ -243,7 +242,7 @@ function gamePage(g) {
     const checksums = g.platforms.map((p) => `<li><span>${PLATFORMS[p].label}</span><code>${esc(v.files[p].sha256 ?? '')}</code></li>`).join('');
 
     const body = `    <div class="page">
-        <nav class="crumbs"><a href="/">Jeremy N. Martin</a><span>/</span><a href="/releases/">Jeux</a></nav>
+        <nav class="crumbs"><a href="/">Jeremy N. Martin</a><span>/</span><a href="/jeux/">Jeux</a></nav>
         <article class="game">
             <div class="game-top">
             ${gallery}
@@ -282,11 +281,11 @@ function gamePage(g) {
     </div>
     <dialog class="lightbox" id="lightbox"><img alt=""><button type="button" class="lb-close" aria-label="Fermer">×</button></dialog>`;
 
-    const image = g.media.cover ? `/releases/${g.slug}/${g.media.cover}` : shots[0] ? `/releases/${g.slug}/${shots[0]}` : undefined;
+    const image = g.media.cover ? `/jeux/${g.slug}/${g.media.cover}` : shots[0] ? `/jeux/${g.slug}/${shots[0]}` : undefined;
     return layout({
         title: `${g.title} · Jeux · Jeremy N. Martin`,
         description: g.tagline ?? `${g.title}, jeu gratuit pour ${g.platforms.map((p) => PLATFORMS[p].label).join(', ')}.`,
-        path: `/releases/${g.slug}/`,
+        path: `/jeux/${g.slug}/`,
         image,
         body,
         bodyClass: g.pixelArt ? 'pixel' : '',
@@ -303,7 +302,7 @@ for (const entry of STATIC) {
 }
 
 const games = loadGames();
-const rel = join(DIST, 'releases');
+const rel = join(DIST, 'jeux');
 mkdirSync(rel, { recursive: true });
 writeFileSync(join(rel, 'index.html'), dashboard(games));
 
@@ -315,6 +314,19 @@ for (const g of games) {
     writeFileSync(join(dir, 'index.html'), gamePage(g));
 }
 
+// Anciennes adresses /releases/… (première mise en ligne) : redirection vers /jeux/….
+const redirect = (to) => `<!DOCTYPE html>
+<html lang="fr"><head><meta charset="UTF-8"><title>Jeux</title>
+<link rel="canonical" href="${SITE.siteUrl}${to}"><meta name="robots" content="noindex">
+<meta http-equiv="refresh" content="0; url=${to}"><script>location.replace(${JSON.stringify(to)} + location.hash)</script>
+</head><body><a href="${to}">Jeux</a></body></html>
+`;
+for (const to of ['/jeux/', ...games.map((g) => `/jeux/${g.slug}/`)]) {
+    const dir = join(DIST, 'releases', to.slice('/jeux/'.length));
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'index.html'), redirect(to));
+}
+
 // Index machine-lisible (pour d'autres outils, ou une future app « launcher »).
 writeFileSync(join(rel, 'games.json'), JSON.stringify(games.map((g) => ({
     slug: g.slug,
@@ -323,11 +335,11 @@ writeFileSync(join(rel, 'games.json'), JSON.stringify(games.map((g) => ({
     genres: g.genres,
     version: g.latest.version,
     date: g.latest.date,
-    url: `${SITE.siteUrl}/releases/${g.slug}/`,
+    url: `${SITE.siteUrl}/jeux/${g.slug}/`,
     downloads: Object.fromEntries(g.platforms.map((p) => [p, { url: fileUrl(g.latest.files[p]), size: g.latest.files[p].size, sha256: g.latest.files[p].sha256 }])),
 })), null, 2));
 
-const urls = ['/', '/releases/', ...games.map((g) => `/releases/${g.slug}/`)];
+const urls = ['/', '/jeux/', ...games.map((g) => `/jeux/${g.slug}/`)];
 writeFileSync(join(DIST, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${urls.map((u) => `  <url><loc>${SITE.siteUrl}${u}</loc></url>`).join('\n')}
