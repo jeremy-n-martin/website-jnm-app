@@ -51,19 +51,23 @@ main {
 }
 
 /* Nom + emblème sur une seule ligne : la taille du titre suit la largeur de la colonne. */
+/* L'emblème est calé à droite : son bord tombe sur le bord droit des cartes. */
 .title {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 0.26em;
-    font-size: min(2.75rem, 10.8cqw);
+    font-size: min(2.75rem, 10.5cqw);
     white-space: nowrap;
 }
 
 .emblem {
     position: relative;
     flex: none;
-    width: 0.82em;
-    height: 0.82em;
+    width: 0.98em;
+    height: 0.98em;
+    /* La spirale occupe ~82 % de la boîte : on compense pour que son trait touche la verticale des cartes. */
+    margin-right: -0.08em;
     margin-top: 0.04em;
     cursor: pointer;
 }
