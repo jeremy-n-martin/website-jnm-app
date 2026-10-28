@@ -27,7 +27,7 @@ Site : content/games/<slug>/game.json  →  /jeux/ et /jeux/<slug>/ (les ancienn
 ./tools/release.ps1 doctor  commun                 # contrôle et corrige les presets
 ./tools/release.ps1 bump    commun                 # version +1 seulement
 ./tools/release.ps1 build   commun                 # exporte les 3 plateformes
-./tools/release.ps1 shots   commun                 # 3 captures (-Count 10 pour plus)
+./tools/release.ps1 shots   commun                 # 3 captures (le carrousel n'en montre que 3, 3 s chacune)
 ./tools/release.ps1 publish commun -Notes "…"      # met en ligne la version préparée
 ./tools/release.ps1 list                           # jeux et versions (entre parenthèses : archivées)
 ```

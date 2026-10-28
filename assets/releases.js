@@ -68,7 +68,7 @@
 
     const carousel = document.querySelector('[data-carousel]');
     if (carousel) {
-        const INTERVAL = 1000;
+        const INTERVAL = 3000; // garder égal à --interval dans releases.css
         const track = carousel.querySelector('.car-track');
         const slides = Array.from(carousel.querySelectorAll('.car-slide'));
         const dots = Array.from(carousel.querySelectorAll('.car-dot'));

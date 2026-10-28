@@ -86,33 +86,23 @@ main {
     navigation: auto;
 }
 
-::view-transition-old(root) {
-    animation: page-out 0.3s cubic-bezier(0.4, 0, 1, 1) both;
-}
-
+/* Simple fondu enchaîné, court, sans mouvement : la nouvelle page est là tout de suite. */
+::view-transition-old(root),
 ::view-transition-new(root) {
-    animation: page-in 0.55s 0.08s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+    animation-duration: 0.16s;
+    animation-timing-function: ease-out;
 }
 
-@keyframes page-out {
-    to { opacity: 0; transform: scale(0.985); }
-}
-
-@keyframes page-in {
-    from { opacity: 0; transform: translateY(14px); }
-}
-
-/* Navigateurs sans transitions de vue : simple apparition en douceur. */
-@supports not (view-transition-name: a) {
-    main,
-    .page {
-        animation: page-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) both;
-    }
-}
-
+/* Le titre « Jeux » glisse de l'accueil au tableau des jeux. */
 ::view-transition-group(jeux-title) {
-    animation-duration: 0.55s;
+    animation-duration: 0.4s;
     animation-timing-function: cubic-bezier(0.3, 0.8, 0.2, 1);
+}
+
+/* Vers ou depuis une fiche de jeu, il n'a pas de pendant : il s'efface avec la page au lieu de flotter. */
+::view-transition-old(jeux-title):only-child,
+::view-transition-new(jeux-title):only-child {
+    animation-duration: 0.16s;
 }
 
 .vt-jeux {

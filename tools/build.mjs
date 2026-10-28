@@ -13,6 +13,9 @@ const SITE = JSON.parse(readFileSync(join(ROOT, 'content', 'site.json'), 'utf8')
 // Service des demandes (feedback/) ; FEEDBACK_API permet de viser un service local pour les essais.
 const FEEDBACK_API = (process.env.FEEDBACK_API ?? SITE.feedbackApi ?? '').replace(/\/$/, '');
 
+// Captures montrées dans le carrousel d'une fiche (les suivantes sont ignorées).
+const MAX_SHOTS = 3;
+
 const STATIC = ['index.html', '404.html', 'CNAME', 'favicon.ico', 'profile.png', 'script.js', 'styles.css', 'icons', 'images', 'assets'];
 
 const PLATFORMS = {
@@ -243,7 +246,7 @@ function downloadRow(p, f, primary = false) {
 }
 
 function gamePage(g) {
-    const shots = g.media.screenshots ?? [];
+    const shots = (g.media.screenshots ?? []).slice(0, MAX_SHOTS);
     const v = g.latest;
     // Le cadre prend le format réel des captures (pas de bandes noires).
     const dims = shots.length ? webpSize(join(GAMES_DIR, g.slug, shots[0])) : null;

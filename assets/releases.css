@@ -694,7 +694,7 @@
 /* ---------- carrousel des captures ---------- */
 
 .carousel {
-    --interval: 1s;
+    --interval: 3s;
 }
 
 .car-viewport {
