@@ -377,7 +377,10 @@ function Invoke-Build {
     Step "$title v$ver ($slug)"
     $game = Read-Game $slug
     if ($game -and ($game.versions | Where-Object { $_.version -eq $ver -and $_.available }) -and -not $Force) {
-        Fail "v$ver est déjà publiée. Monte la version dans project.godot, ou -Force pour la remplacer."
+        Fail "v$ver est déjà publiée. Monte la version dans project.godot (ou relance « ship », qui la monte seul)."
+    }
+    if ($Force -and $game -and ($game.versions | Where-Object { $_.version -eq $ver -and $_.available })) {
+        Warn "v$ver remplacée sous la même adresse : Cloudflare et les navigateurs gardent l'ancien fichier en cache (jusqu'à un an). Préfère un nouveau numéro."
     }
     if (Test-Path $stage) { Remove-Item $stage -Recurse -Force }
     New-Item -ItemType Directory -Force $stage | Out-Null
@@ -679,11 +682,11 @@ function Invoke-Publish {
 
     # Rétention : on garde les $Keep dernières versions + les jalons ; les autres ne sont plus téléchargeables.
     # Les versions sont rangées de la plus récente à la plus ancienne (chaque publication passe en tête).
+    # Les fichiers ne sont supprimés de R2 qu'après le push : tant que le site en ligne les propose, ils restent.
     $alive = @($game.versions | Where-Object { $_.available })
     $drop = @($alive | Select-Object -Skip $Keep | Where-Object { -not $_.milestone })
     foreach ($v in $drop) {
         Info "Rétention : v$($v.version) archivée"
-        if (-not $SkipUpload) { Invoke-Rclone purge "r2:$bucket/$slug/$($v.version)" }
         $v.available = $false
     }
     Save-Game $slug $game
@@ -694,15 +697,28 @@ function Invoke-Publish {
 
     if ($SkipUpload -or $NoPush) {
         Warn 'Pas de commit/push (SkipUpload ou NoPush).'
+        if ($drop.Count) { Warn "Rétention : $(($drop | ForEach-Object { "v$($_.version)" }) -join ', ') marquées archivées mais laissées sur R2 (rien n'est supprimé sans push)." }
     } else {
         Step 'Mise en ligne du site'
         git -C $Site add "content/games/$slug"
-        git -C $Site commit -m "release: $title v$($rel.version)" | Out-Null
+        if ($LASTEXITCODE -ne 0) { Fail "git add a échoué : la version est sur R2, la fiche est modifiée mais pas commitée dans $Site." }
+        # Rien à committer (publication relancée après un push raté) : on passe directement au push.
+        git -C $Site diff --cached --quiet
+        if ($LASTEXITCODE -ne 0) {
+            git -C $Site commit -m "release: $title v$($rel.version)" | Out-Null
+            if ($LASTEXITCODE -ne 0) { Fail "git commit a échoué : la version est sur R2, la fiche est modifiée mais pas commitée dans $Site." }
+        }
         # --autostash : d'autres modifications en cours dans le dépôt ne bloquent pas la mise en ligne.
         git -C $Site pull --rebase --autostash --quiet
         if ($LASTEXITCODE -ne 0) { Fail "git pull a échoué : la version est sur R2, la fiche est commitée localement. Résous puis « git push » dans $Site." }
         git -C $Site push --quiet
         if ($LASTEXITCODE -ne 0) { Fail "git push a échoué : la version est sur R2, la fiche est commitée localement. Relance « git push » dans $Site." }
+        # Le site est à jour : on peut retirer de R2 les versions archivées. Un échec ici ne casse rien
+        # (le site ne les propose plus), il laisse seulement des fichiers à supprimer plus tard.
+        foreach ($v in $drop) {
+            & rclone purge "r2:$bucket/$slug/$($v.version)"
+            if ($LASTEXITCODE -ne 0) { Warn "Rétention : r2:$bucket/$slug/$($v.version) n'a pas pu être supprimé (code $LASTEXITCODE), à retirer à la main." }
+        }
         Remove-Item $dir -Recurse -Force
         Info "https://jnm.app/jeux/$slug/ (en ligne d'ici 1 à 2 minutes)"
     }
@@ -945,6 +961,21 @@ function Invoke-List {
     }
 }
 
+# Une seule release à la fois sur la machine (plusieurs sessions Claude peuvent lancer le script) :
+# elles partagent le dépôt du site, D:\build et Godot. La suivante attend son tour.
+# Le verrou est libéré par Windows si le processus meurt.
+$lock = $null
+if ($Command -ne 'list') {
+    $lock = [System.Threading.Mutex]::new($false, 'Global\jnm-release')
+    try {
+        if (-not $lock.WaitOne(0)) {
+            Write-Host '  Une autre release est en cours sur cette machine : j''attends qu''elle finisse (30 min max)…' -ForegroundColor Yellow
+            if (-not $lock.WaitOne([TimeSpan]::FromMinutes(30))) { Fail 'Une autre release tourne depuis plus de 30 min : vérifie-la, puis relance.' }
+        }
+    } catch [System.Threading.AbandonedMutexException] { Warn 'La release précédente s''est arrêtée en cours de route : vérifie « git status » dans le dépôt du site.' }
+}
+
+try {
 switch ($Command) {
     'ship' { Invoke-Ship }
     'bump' { Invoke-Bump }
@@ -954,3 +985,4 @@ switch ($Command) {
     'publish' { Invoke-Publish }
     'list' { Invoke-List }
 }
+} finally { if ($lock) { $lock.ReleaseMutex(); $lock.Dispose() } }

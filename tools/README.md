@@ -53,11 +53,15 @@ Options utiles :
 - `ship -Shots` : refaire les captures. `ship -NoBump` : garder la version. `ship -Version 0.100` : imposer un numéro.
 - `build -Windows <exe> -Android <apk> -Mac <zip>` : publier des builds déjà faits sans réexporter.
 - `build -Platforms windows,android` : seulement certaines plateformes.
-- `build -Force` : remplacer une version déjà publiée.
+- `build -Force` : remplacer une version déjà publiée (à éviter : les fichiers sont en cache « immutable » un an
+  chez Cloudflare et dans les navigateurs, l'ancien fichier resterait servi ; monte plutôt la version).
 - `shots -From <dossier>` : importer ses propres PNG.
 - `publish -Milestone` : version jamais archivée.
 - `publish -Keep 5` : nombre de versions téléchargeables (défaut : `keep` dans `release.config.json`).
 - `publish -SkipUpload` / `-NoPush` : tests locaux, rien n'est mis en ligne.
+
+Une seule release à la fois sur la machine (verrou système `jnm-release`) : si plusieurs sessions lancent
+le script, la suivante attend que la précédente finisse (30 min max). `list` n'est pas concerné.
 
 En local : `npm run dev` (http://localhost:3000).
 
@@ -78,7 +82,8 @@ En local : `npm run dev` (http://localhost:3000).
 ## Rétention
 
 À chaque `publish`, seules les `keep` dernières versions (3 par défaut) et les jalons restent téléchargeables ;
-les autres sont supprimées de R2 mais gardent leur ligne de changelog. Coût indicatif : 100 jeux × 3 versions
+les autres sont supprimées de R2 (seulement après un push réussi, pour que le site en ligne ne pointe jamais
+vers un fichier absent) mais gardent leur ligne de changelog. Coût indicatif : 100 jeux × 3 versions
 × 250 Mo ≈ 75 Go, soit environ 1 $/mois (R2 ne facture pas les téléchargements).
 
 ## Mise en place (une seule fois)
