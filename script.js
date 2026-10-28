@@ -18,10 +18,11 @@
         return;
     }
 
-    const MAX_PARTICLES = 150;
+    const MAX_PARTICLES = 90;
     const CONNECTION_DISTANCE = 100;
     const MOUSE_RADIUS = 150;
-    const PARTICLE_COLOR = '#6e6e73';
+    const PARTICLE_COLOR = 'rgba(110, 110, 115, 0.45)';
+    const LINE_OPACITY = 0.28;
 
     let particles = [];
     let animationId = null;
@@ -38,16 +39,16 @@
         return {
             x: Math.random() * canvas.width,
             y: Math.random() * canvas.height,
-            size: Math.random() * 5 + 1,
-            speedX: Math.random() * 3 - 1.5,
-            speedY: Math.random() * 3 - 1.5,
+            size: Math.random() * 1.8 + 0.7,
+            speedX: Math.random() * 1.2 - 0.6,
+            speedY: Math.random() * 1.2 - 0.6,
         };
     }
 
     function initParticles() {
         const count = Math.min(
             MAX_PARTICLES,
-            Math.floor((canvas.width * canvas.height) / 9000)
+            Math.floor((canvas.width * canvas.height) / 16000)
         );
         particles = Array.from({ length: count }, createParticle);
     }
@@ -73,9 +74,9 @@
         if (distance >= maxDistance) return;
 
         const t = distance / maxDistance;
-        const opacity = 1 - t * t * t;
+        const opacity = (1 - t * t * t) * LINE_OPACITY;
         ctx.strokeStyle = `rgba(110, 110, 115, ${opacity})`;
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 0.7;
         ctx.beginPath();
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);

@@ -18,7 +18,7 @@
 
 /* Le plexus reste en fond mais ne doit pas gêner la lecture des fiches. */
 .releases #plexus-canvas {
-    opacity: 0.35;
+    opacity: 0.7;
 }
 
 .releases :focus-visible {
