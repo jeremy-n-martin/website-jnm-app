@@ -1,4 +1,5 @@
 {
   "siteUrl": "https://jnm.app",
-  "downloadBase": "https://dl.jnm.app"
+  "downloadBase": "https://dl.jnm.app",
+  "feedbackApi": "https://api.jnm.app/v1"
 }

@@ -11,6 +11,6 @@ GAMES_URL = "https://jnm.app/jeux/games.json"
 [[d1_databases]]
 binding = "DB"
 database_name = "jnm-feedback"
-database_id = "A_REMPLIR"
+database_id = "cad8d3b9-9fb7-4b2d-b04c-2414190aad74"
 
 # Secrets (wrangler secret put) : ADMIN_TOKEN, IP_SALT. Jamais dans ce fichier.
