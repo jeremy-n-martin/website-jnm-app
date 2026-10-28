@@ -17,7 +17,16 @@
     "cover": "media/shot-01.webp",
     "icon": "media/icon.png",
     "screenshots": [
-      "media/shot-01.webp"
+      "media/shot-01.webp",
+      "media/shot-02.webp",
+      "media/shot-03.webp",
+      "media/shot-04.webp",
+      "media/shot-05.webp",
+      "media/shot-06.webp",
+      "media/shot-07.webp",
+      "media/shot-08.webp",
+      "media/shot-09.webp",
+      "media/shot-10.webp"
     ]
   },
   "versions": [

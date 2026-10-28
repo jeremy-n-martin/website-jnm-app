@@ -3,13 +3,19 @@
     Pipeline de release des jeux Godot vers jnm.app/jeux (binaires sur Cloudflare R2).
 
 .DESCRIPTION
-    release.ps1 build   <jeu>   Exporte Windows / Android / macOS dans un dossier de préparation.
-    release.ps1 shots   <jeu>   Génère (tools/shots.gd du jeu) ou importe (-From) les captures en WebP.
+    release.ps1 ship    <jeu>   Tout en une fois : version +1, contrôles, export, tests, captures, publication.
+    release.ps1 bump    <jeu>   Version +1 (0.007 → 0.008) dans project.godot et tous les presets.
+    release.ps1 doctor  <jeu>   Vérifie et corrige les presets (exe autonome x64, macOS universel, APK ARM).
+    release.ps1 build   <jeu>   Exporte Windows / Android / macOS, lance les tests et un test de démarrage.
+    release.ps1 shots   <jeu>   10 captures : tools/shots.gd du jeu s'il existe, complété par l'explorateur.
     release.ps1 publish <jeu>   Envoie la version préparée sur R2, met à jour la fiche, applique la
                                 rétention, puis commit + push du site (GitHub Pages redéploie).
     release.ps1 list            Liste les jeux publiés et leurs versions.
 
     <jeu> = nom du dossier dans D:\godot (ex. commun) ou chemin complet du projet.
+
+.EXAMPLE
+    ./tools/release.ps1 ship commun -Notes "Nouveau mode défi du jour."
 
 .EXAMPLE
     ./tools/release.ps1 build commun
@@ -22,7 +28,7 @@
 #>
 [CmdletBinding()]
 param(
-    [Parameter(Position = 0, Mandatory)][ValidateSet('build', 'shots', 'publish', 'list')][string]$Command,
+    [Parameter(Position = 0, Mandatory)][ValidateSet('ship', 'bump', 'doctor', 'build', 'shots', 'publish', 'list')][string]$Command,
     [Parameter(Position = 1)][string]$Project,
     [string]$Version,
     [ValidateSet('windows', 'android', 'macos')][string[]]$Platforms = @('windows', 'android', 'macos'),
@@ -30,11 +36,15 @@ param(
     [string]$Android,
     [string]$Mac,
     [string]$From,
+    [int]$Count = 10,
     [string]$Notes,
     [switch]$Milestone,
     [int]$Keep,
     [switch]$SkipUpload,
     [switch]$NoPush,
+    [switch]$NoBump,
+    [switch]$Shots,
+    [switch]$SkipTests,
     [switch]$Force
 )
 
@@ -79,7 +89,7 @@ function Read-Presets([string]$proj) {
     $presets = [ordered]@{}
     $cur = $null
     foreach ($line in Get-Content $file) {
-        if ($line -match '^\[preset\.(\d+)(\.options)?\]') { $cur = $Matches[1]; if (-not $presets.Contains($cur)) { $presets[$cur] = @{ options = @{} } }; $isOpt = [bool]$Matches[2]; continue }
+        if ($line -match '^\[preset\.(\d+)(\.options)?\]') { $cur = $Matches[1]; if (-not $presets.Contains($cur)) { $presets[$cur] = @{ options = @{}; index = $cur } }; $isOpt = [bool]$Matches[2]; continue }
         if ($null -eq $cur -or $line -notmatch '^([^=]+)=(.*)$') { continue }
         $k = $Matches[1]; $v = $Matches[2].Trim('"')
         if ($isOpt) { $presets[$cur].options[$k] = $v } else { $presets[$cur][$k] = $v }
@@ -104,6 +114,59 @@ function Get-ProjectVersion([string]$proj, $presets) {
         if ($hit) { return $hit }
     }
     return $null
+}
+
+# ---------- écriture de project.godot / export_presets.cfg ----------
+
+function Edit-CfgFile([string]$file, [string]$section, [string]$key, [string]$value) {
+    # Remplace (ou ajoute) key=value dans la section [section] d'un fichier .cfg / project.godot.
+    $lines = [Collections.Generic.List[string]]([IO.File]::ReadAllText($file) -split "`n")
+    $start = $lines.FindIndex({ param($l) $l.TrimEnd("`r") -eq "[$section]" })
+    if ($start -lt 0) { $lines.Add(''); $lines.Add("[$section]"); $lines.Add(''); $start = $lines.Count - 2 }
+    $end = $lines.FindIndex($start + 1, { param($l) $l -match '^\[' })
+    if ($end -lt 0) { $end = $lines.Count }
+    $hit = -1
+    for ($i = $start + 1; $i -lt $end; $i++) { if ($lines[$i] -match ('^' + [regex]::Escape($key) + '=')) { $hit = $i; break } }
+    if ($hit -ge 0) {
+        if ($lines[$hit].TrimEnd("`r") -eq "$key=$value") { return $false }
+        $lines[$hit] = "$key=$value"
+    } else {
+        $at = $end
+        while ($at -gt $start + 1 -and -not $lines[$at - 1].Trim()) { $at-- }
+        $lines.Insert($at, "$key=$value")
+    }
+    [IO.File]::WriteAllText($file, ($lines -join "`n"))
+    return $true
+}
+
+function Set-PresetOption($proj, $preset, [string]$key, [string]$value) {
+    return Edit-CfgFile (Join-Path $proj 'export_presets.cfg') "preset.$($preset.index).options" $key $value
+}
+
+# 0.007 → 0.008, 0.009 → 0.010, 0.1.0 → 0.1.1 (on garde le nombre de chiffres).
+function Get-NextVersion([string]$v) {
+    if ($v -notmatch '^(.*?)(\d+)(\D*)$') { Fail "Version illisible : $v" }
+    $n = [int64]$Matches[2] + 1
+    return $Matches[1] + $n.ToString().PadLeft($Matches[2].Length, '0') + $Matches[3]
+}
+
+# Windows exige 4 nombres : 0.008 → 0.8.0.0
+function ConvertTo-WinVersion([string]$v) {
+    $parts = @([regex]::Matches($v, '\d+') | ForEach-Object { [int64]$_.Value })
+    while ($parts.Count -lt 4) { $parts += 0 }
+    return ($parts[0..3] -join '.')
+}
+
+function Get-SafeName([string]$s) { return ($s -replace '[\\/:*?"<>|]', '-').Trim() }
+
+function Test-Published([string]$slug, [string]$ver, [string]$title) {
+    $game = Read-Game $slug
+    if ($game -and ($game.versions | Where-Object { $_.version -eq $ver })) { return $true }
+    if ($Config.localBuildDir) {
+        $name = "$(Get-SafeName $title) v$ver"
+        foreach ($sub in $LocalSub.Values) { if (Get-ChildItem (Join-Path $Config.localBuildDir $sub) -Filter "$name.*" -ErrorAction SilentlyContinue) { return $true } }
+    }
+    return $false
 }
 
 function Get-Godot([string]$proj) {
@@ -237,6 +300,7 @@ function Invoke-Build {
         Step 'Import des ressources'
         & $godot --headless --path $proj --import 2>&1 | Out-Null
         if ($LASTEXITCODE -ne 0) { Warn "import terminé avec le code $LASTEXITCODE (on continue)" }
+        if (-not $SkipTests) { Invoke-ProjectTests $proj $godot $slug }
     }
 
     $files = [ordered]@{}
@@ -267,9 +331,11 @@ function Invoke-Build {
 
         switch ($p) {
             'windows' {
-                if ($produced.Count -eq 1 -and $main.Extension -eq '.exe') { $name = "$slug-v$ver-windows-x64.exe"; Move-Item $main.FullName (Join-Path $stage $name) }
-                elseif ($produced.Count -eq 1 -and $main.Extension -eq '.zip') { $name = "$slug-v$ver-windows-x64.zip"; Move-Item $main.FullName (Join-Path $stage $name) }
-                else { $name = "$slug-v$ver-windows-x64.zip"; Compress-Archive -Path (Join-Path $tmp '*') -DestinationPath (Join-Path $stage $name) }
+                if ($produced.Count -ne 1 -or $main.Extension -ne '.exe') {
+                    Fail "windows : un seul .exe autonome attendu, reçu $($produced.Name -join ', '). Lance « doctor » (PCK intégré)."
+                }
+                if (-not $useExisting) { Test-Smoke $main.FullName $slug }
+                $name = "$slug-v$ver-windows-x64.exe"; Move-Item $main.FullName (Join-Path $stage $name)
             }
             'android' {
                 if ($main.Extension -ne '.apk') { Fail "android : attendu un .apk, reçu $($main.Name)" }
@@ -290,14 +356,21 @@ function Invoke-Build {
             sha256 = (Get-FileHash $full -Algorithm SHA256).Hash.ToLowerInvariant()
         }
         Info ("{0} · {1:N1} Mo" -f $name, ($files[$p].size / 1MB))
-
-        if ($Config.localBuildDir -and -not $useExisting) {
-            $dest = Join-Path $Config.localBuildDir $LocalSub[$p]
-            New-Item -ItemType Directory -Force $dest | Out-Null
-            Copy-Item $full $dest -Force
-        }
     }
     if (-not $files.Count) { Fail 'Aucun livrable produit.' }
+
+    # Livrables locaux, une fois tout validé : uniquement les exécutables, nommés « <Nom> v<version>.<ext> ».
+    if ($Config.localBuildDir -and -not $useExisting) {
+        Step "Copie dans $($Config.localBuildDir)"
+        foreach ($p in $files.Keys) {
+            $dest = Join-Path $Config.localBuildDir $LocalSub[$p]
+            New-Item -ItemType Directory -Force $dest | Out-Null
+            $src = Join-Path $stage (Split-Path $files[$p].file -Leaf)
+            $local = "$(Get-SafeName $title) v$ver$([IO.Path]::GetExtension($src))"
+            Copy-Item $src (Join-Path $dest $local) -Force
+            Info "$($LocalSub[$p])\$local"
+        }
+    }
 
     [ordered]@{ slug = $slug; title = $title; version = $ver; project = $proj; date = (Get-Date -Format 'yyyy-MM-dd'); files = $files } |
         ConvertTo-Json -Depth 6 | Set-Content (Join-Path $stage 'release.json') -Encoding utf8NoBOM
@@ -307,6 +380,51 @@ function Invoke-Build {
         Info "Fiche créée : content/games/$slug/game.json (résumé et genres à rédiger)"
     }
     Step "Prêt à publier : $stage"
+}
+
+function Get-UserDir([string]$proj) {
+    if ((Read-ProjectSetting $proj 'config/use_custom_user_dir') -eq 'true') {
+        $custom = Read-ProjectSetting $proj 'config/custom_user_dir_name'
+        if ($custom) { return Join-Path $env:APPDATA $custom }
+    }
+    return Join-Path $env:APPDATA "Godot/app_userdata/$(Read-ProjectSetting $proj 'config/name')"
+}
+
+# Lance le jeu avec l'explorateur jnm_autoshots.gd injecté par un override.cfg temporaire.
+# Le jeu tourne sur une copie de la sauvegarde : la vraie progression n'est jamais modifiée.
+function Invoke-AutoShots([string]$proj, [string]$godot, [string]$outDir, [string]$slug, [int]$want, [string]$driver = '') {
+    $override = Join-Path $proj 'override.cfg'
+    if (Test-Path $override) { Warn 'override.cfg déjà présent dans le projet : explorateur ignoré.'; return }
+    $isolatedName = "jnm-shots/$slug"
+    $isolated = Join-Path $env:APPDATA $isolatedName
+    if (Test-Path $isolated) { Remove-Item $isolated -Recurse -Force }
+    New-Item -ItemType Directory -Force $isolated | Out-Null
+    $real = Get-UserDir $proj
+    if (Test-Path $real) { Copy-Item (Join-Path $real '*') $isolated -Recurse -Force -Exclude 'shader_cache', 'vulkan', 'logs' }
+    $script = if ($driver) { $driver } else { (Join-Path $PSScriptRoot 'godot/jnm_autoshots.gd') -replace '\\', '/' }
+    $logName = if ($driver) { 'shots' } else { 'autoshots' }  # journaux distincts : l'explorateur n'écrase pas celui du jeu
+    @"
+[application]
+config/use_custom_user_dir=true
+config/custom_user_dir_name="$isolatedName"
+
+[autoload]
+JnmAutoshots="*$script"
+"@ | Set-Content $override -Encoding utf8NoBOM
+    $env:JNM_SHOTS_DIR = $outDir
+    $env:JNM_SHOTS_COUNT = "$want"
+    $env:JNM_SHOTS_TIME = '100'
+    try {
+        Info "Explorateur : $want capture(s) visée(s), 2 minutes maximum"
+        # --quit-after : filet de sécurité si l'explorateur ne se charge pas (environ 2 min à 60 i/s).
+        $proc = Start-Process $godot -ArgumentList '--path', "`"$proj`"", '--quit-after', '8000' -PassThru -NoNewWindow -RedirectStandardOutput (Join-Path $env:TEMP "jnm-$logName-$slug.log") -RedirectStandardError (Join-Path $env:TEMP "jnm-$logName-$slug.err.log")
+        if (-not $proc.WaitForExit(180000)) { $proc.Kill(); Warn 'Explorateur arrêté (délai dépassé).' }
+    } finally {
+        Remove-Item $override -Force -ErrorAction SilentlyContinue
+        Remove-Item $isolated -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item Env:JNM_SHOTS_DIR, Env:JNM_SHOTS_COUNT, Env:JNM_SHOTS_TIME -ErrorAction SilentlyContinue
+    }
+    Info "$(@(Get-ChildItem $outDir -Filter '*.png').Count) image(s) au total"
 }
 
 function Invoke-Shots {
@@ -321,15 +439,30 @@ function Invoke-Shots {
         if (Test-Path $raw) { Remove-Item $raw -Recurse -Force }
         New-Item -ItemType Directory -Force $raw | Out-Null
         $godot = Get-Godot $proj
-        Step 'Captures (le jeu va s''ouvrir quelques secondes)'
-        if (Test-Path (Join-Path $proj 'tools/shots.gd')) {
-            # Outil propre au jeu : il parcourt les écrans clés.
-            $proc = Start-Process $godot -ArgumentList '--path', "`"$proj`"", '-s', 'tools/shots.gd', '--', "`"$raw`"" -PassThru -NoNewWindow
-            if (-not $proc.WaitForExit(300000)) { $proc.Kill(); Fail 'shots.gd ne s''est pas terminé en 5 minutes' }
-        } else {
-            # Repli générique : Godot enregistre 9 s du jeu lancé normalement ; sans interaction ce n'est
-            # que l'écran titre, donc une seule image (la couverture).
-            Warn 'Pas de tools/shots.gd : captures génériques (écran de démarrage seulement).'
+        Step 'Captures (le jeu va s''ouvrir, ne touche pas à la fenêtre)'
+        $tool = Join-Path $proj 'tools/shots.gd'
+        if ((Test-Path $tool) -and (Select-String $tool -Pattern '^extends\s+SceneTree' -Quiet)) {
+            # Outil propre au jeu, en script principal (-s) : il construit lui-même ses écrans.
+            $log = Join-Path $env:TEMP "jnm-shots-$slug.log"
+            $proc = Start-Process $godot -ArgumentList '--path', "`"$proj`"", '-s', 'tools/shots.gd', '--', "`"$raw`"" -PassThru -NoNewWindow -RedirectStandardOutput $log -RedirectStandardError "$log.err"
+            if (-not $proc.WaitForExit(300000)) { $proc.Kill(); Fail "shots.gd ne s'est pas terminé en 5 minutes (journal : $log)" }
+            if (-not (Get-ChildItem $raw -Filter *.png)) { Warn "shots.gd n'a produit aucune image (journal : $log)" }
+        } elseif (Test-Path $tool) {
+            # Outil propre au jeu, en autoload : le jeu tourne normalement et le script le pilote.
+            Invoke-AutoShots $proj $godot $raw $slug $Count 'res://tools/shots.gd'
+        }
+        if (Test-Path $tool) {
+            # Ses images passent avant celles de l'explorateur (tri par nom).
+            Get-ChildItem $raw -Filter *.png | ForEach-Object { Rename-Item $_.FullName "0-$($_.Name)" }
+        }
+        $have = @(Get-ChildItem $raw -Filter *.png).Count
+        if ($have -lt $Count) {
+            # L'explorateur complète jusqu'au nombre voulu.
+            Invoke-AutoShots $proj $godot $raw $slug ($Count - $have)
+        }
+        if (-not (Get-ChildItem $raw -Filter *.png)) {
+            # Dernier recours : Godot enregistre 9 s du jeu lancé normalement (écran titre).
+            Warn 'Explorateur sans résultat : capture de l''écran titre seulement.'
             $frames = Join-Path $raw 'frames'
             New-Item -ItemType Directory -Force $frames | Out-Null
             $proc = Start-Process $godot -ArgumentList '--path', "`"$proj`"", '--write-movie', "`"$(Join-Path $frames 'f.png')`"", '--fixed-fps', '10', '--quit-after', '90' -PassThru -NoNewWindow
@@ -346,7 +479,7 @@ function Invoke-Shots {
     $godot = Get-Godot $proj
     $mode = if ($game.pixelArt) { 'nearest' } else { 'lanczos' }
     & $godot --headless -s (Join-Path $PSScriptRoot 'godot/towebp.gd') -- $raw $out 1920 $mode 2>&1 | Out-Null
-    $webp = @(Get-ChildItem $out -Filter *.webp -ErrorAction SilentlyContinue | Sort-Object Name)
+    $webp = @(Get-ChildItem $out -Filter *.webp -ErrorAction SilentlyContinue | Sort-Object Name | Select-Object -First $Count)
     if (-not $webp) { Fail "Aucune capture convertie depuis $raw" }
 
     New-Item -ItemType Directory -Force $media | Out-Null
@@ -440,6 +573,133 @@ function Invoke-Publish {
     }
 }
 
+# ---------- contrôles avant publication ----------
+
+# Écrit un override.cfg qui redirige user:// vers un dossier jetable (la vraie sauvegarde n'est jamais touchée).
+function New-Isolation([string]$dir, [string]$name, [string]$extra = '') {
+    $override = Join-Path $dir 'override.cfg'
+    if (Test-Path $override) { return $null }
+    $isolated = Join-Path $env:APPDATA $name
+    if (Test-Path $isolated) { Remove-Item $isolated -Recurse -Force }
+    "[application]`nconfig/use_custom_user_dir=true`nconfig/custom_user_dir_name=`"$($name -replace '\\', '/')`"`n$extra" | Set-Content $override -Encoding utf8NoBOM
+    return @{ override = $override; isolated = $isolated }
+}
+
+function Remove-Isolation($iso) {
+    if (-not $iso) { return }
+    Remove-Item $iso.override -Force -ErrorAction SilentlyContinue
+    Remove-Item $iso.isolated -Recurse -Force -ErrorAction SilentlyContinue
+}
+
+# Lance les tests du projet (tests/test_*.gd), chacun en mode headless.
+function Invoke-ProjectTests([string]$proj, [string]$godot, [string]$slug) {
+    $tests = @(Get-ChildItem (Join-Path $proj 'tests') -Filter 'test_*.gd' -ErrorAction SilentlyContinue)
+    if (-not $tests) { return }
+    Step "Tests ($($tests.Count))"
+    $iso = New-Isolation $proj "jnm-tests/$slug"
+    try {
+        foreach ($t in $tests) {
+            $log = Join-Path $env:TEMP "jnm-test-$slug-$($t.BaseName).log"
+            $proc = Start-Process $godot -ArgumentList '--headless', '--path', "`"$proj`"", '-s', "res://tests/$($t.Name)" -PassThru -NoNewWindow -RedirectStandardOutput $log -RedirectStandardError "$log.err"
+            if (-not $proc.WaitForExit(240000)) { $proc.Kill(); Fail "Test $($t.Name) : délai dépassé (journal : $log)" }
+            if ($proc.ExitCode -ne 0) {
+                Get-Content $log, "$log.err" -Tail 8 -ErrorAction SilentlyContinue | ForEach-Object { Info $_ }
+                Fail "Test $($t.Name) en échec (code $($proc.ExitCode)). Corrige, ou -SkipTests pour passer outre."
+            }
+            Info "✓ $($t.Name)"
+        }
+    } finally { Remove-Isolation $iso }
+}
+
+# Démarre l'exe exporté sans fenêtre pendant ~5 s : il doit se lancer et quitter proprement.
+function Test-Smoke([string]$exe, [string]$slug) {
+    Step 'Test de démarrage (exe Windows)'
+    $dir = Split-Path $exe -Parent
+    $iso = New-Isolation $dir "jnm-smoke/$slug"
+    $log = Join-Path $env:TEMP "jnm-smoke-$slug.log"
+    try {
+        $proc = Start-Process $exe -ArgumentList '--headless', '--quit-after', '300' -PassThru -NoNewWindow -RedirectStandardOutput $log -RedirectStandardError "$log.err"
+        if (-not $proc.WaitForExit(90000)) { $proc.Kill(); Fail "Le jeu ne quitte pas après 300 images (journal : $log)" }
+        $out = (Get-Content $log, "$log.err" -Raw -ErrorAction SilentlyContinue) -join "`n"
+        if ($proc.ExitCode -ne 0) { Fail "Le jeu exporté plante au démarrage (code $($proc.ExitCode), journal : $log)" }
+        $errors = ([regex]::Matches($out, 'SCRIPT ERROR')).Count
+        if ($errors) { Warn "$errors erreur(s) de script au démarrage (journal : $log)" } else { Info '✓ démarre et quitte proprement' }
+    } finally { Remove-Isolation $iso }
+}
+
+function Invoke-Doctor {
+    $proj = Resolve-Project $Project
+    $presets = Read-Presets $proj
+    Step "Contrôle de $(Read-ProjectSetting $proj 'config/name')"
+    $fixed = 0
+    $w = Find-Preset $presets 'windows'
+    if ($w) {
+        if (Set-PresetOption $proj $w 'binary_format/embed_pck' 'true') { Info 'Windows : PCK intégré (exe autonome)'; $fixed++ }
+        if (Set-PresetOption $proj $w 'binary_format/architecture' '"x86_64"') { Info 'Windows : architecture x64'; $fixed++ }
+    } else { Warn 'Pas de preset Windows Desktop' }
+    $m = Find-Preset $presets 'macos'
+    if ($m) {
+        if (Set-PresetOption $proj $m 'binary_format/architecture' '"universal"') { Info 'macOS : universel (Intel + Apple Silicon)'; $fixed++ }
+    } else { Warn 'Pas de preset macOS' }
+    $a = Find-Preset $presets 'android'
+    if ($a) {
+        if (Set-PresetOption $proj $a 'architectures/arm64-v8a' 'true') { Info 'Android : ARM64 activé'; $fixed++ }
+        if (-not $a.options['keystore/release']) { Warn 'Android : aucun keystore de release (les mises à jour ne s''installeront pas par-dessus)' }
+    } else { Warn 'Pas de preset Android' }
+    if (-not (Read-ProjectSetting $proj 'config/version')) { Warn 'config/version absent de project.godot (« bump » l''ajoutera)' }
+    $shown = Get-ChildItem $proj -Recurse -Include *.gd, *.tscn -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -notmatch '\\(\.godot|addons)\\' } |
+        Select-String -Pattern 'config/version' -SimpleMatch -List | Select-Object -First 1
+    if (-not $shown) { Warn 'La version n''est pas affichée en jeu : ajoute-la en bas de l''écran titre (ProjectSettings.get_setting("application/config/version")).' }
+    Info $(if ($fixed) { "$fixed réglage(s) corrigé(s) dans export_presets.cfg" } else { 'Presets conformes' })
+}
+
+function Invoke-Bump {
+    $proj = Resolve-Project $Project
+    $presets = Read-Presets $proj
+    $title = Read-ProjectSetting $proj 'config/name'
+    $cur = Get-ProjectVersion $proj $presets
+    $new = if ($Version) { $Version } elseif ($cur) { Get-NextVersion $cur } else { '0.001' }
+    Step "Version : $(if ($cur) { "v$cur → " })v$new"
+    $pg = Join-Path $proj 'project.godot'
+    Edit-CfgFile $pg 'application' 'config/version' "`"$new`"" | Out-Null
+    $w = Find-Preset $presets 'windows'
+    if ($w) {
+        Set-PresetOption $proj $w 'application/file_version' "`"$(ConvertTo-WinVersion $new)`"" | Out-Null
+        Set-PresetOption $proj $w 'application/product_version' "`"$(ConvertTo-WinVersion $new)`"" | Out-Null
+    }
+    $a = Find-Preset $presets 'android'
+    if ($a) {
+        $code = [int]($a.options['version/code'] ?? 0) + 1
+        Set-PresetOption $proj $a 'version/code' "$code" | Out-Null
+        Set-PresetOption $proj $a 'version/name' "`"$new`"" | Out-Null
+        Info "Android : versionCode $code"
+    }
+    $m = Find-Preset $presets 'macos'
+    if ($m) {
+        Set-PresetOption $proj $m 'application/short_version' "`"$new`"" | Out-Null
+        Set-PresetOption $proj $m 'application/version' "`"$new`"" | Out-Null
+    }
+    $script:Version = $new
+}
+
+function Invoke-Ship {
+    $proj = Resolve-Project $Project
+    $script:Project = $proj
+    $title = Read-ProjectSetting $proj 'config/name'
+    $slug = Find-Slug $proj $title
+    Invoke-Doctor
+    $cur = Get-ProjectVersion $proj (Read-Presets $proj)
+    # Chaque release a un numéro neuf : on n'incrémente que si la version actuelle est déjà sortie.
+    if ($Version) { Invoke-Bump }
+    elseif (-not $NoBump -and (-not $cur -or (Test-Published $slug $cur $title))) { Invoke-Bump }
+    else { Step "Version v$cur (pas encore publiée, conservée)"; $script:Version = $cur }
+    Invoke-Build
+    $have = @(Get-ChildItem (Join-Path $GamesContent "$slug/media") -Filter 'shot-*.webp' -ErrorAction SilentlyContinue).Count
+    if ($Shots -or $have -lt $Count) { Invoke-Shots } else { Info "Captures conservées ($have) : -Shots pour les refaire" }
+    Invoke-Publish
+}
+
 function Invoke-List {
     if (-not (Test-Path $GamesContent)) { Info 'Aucun jeu.'; return }
     foreach ($f in Get-ChildItem $GamesContent -Directory | Sort-Object Name) {
@@ -451,6 +711,9 @@ function Invoke-List {
 }
 
 switch ($Command) {
+    'ship' { Invoke-Ship }
+    'bump' { Invoke-Bump }
+    'doctor' { Invoke-Doctor }
     'build' { Invoke-Build }
     'shots' { Invoke-Shots }
     'publish' { Invoke-Publish }

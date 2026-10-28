@@ -6,27 +6,47 @@ ils sont sur Cloudflare R2 et servis par `https://dl.jnm.app`.
 
 ```
 D:\godot\<jeu>            projet Godot (source, pas de git)
-        │  release.ps1 build      export Windows / Android / macOS (Godot en ligne de commande)
+        │  release.ps1 doctor     presets conformes : exe autonome x64, macOS universel, APK ARM64
+        │  release.ps1 bump       version +1 (0.007 → 0.008) dans project.godot et tous les presets
+        │  release.ps1 build      export des 3 plateformes, tests du projet, test de démarrage de l'exe
         ▼
-%LOCALAPPDATA%\jnm-release\stage\<slug>\<version>\   + copie dans D:\build\{windows,android,mac}
-        │  release.ps1 shots      captures → content/games/<slug>/media/*.webp
+%LOCALAPPDATA%\jnm-release\stage\<slug>\<version>\   + D:\build\{windows,android,mac}\<Nom> v<version>.<ext>
+        │  release.ps1 shots      10 captures → content/games/<slug>/media/shot-XX.webp
         │  release.ps1 publish    envoi R2 → game.json → rétention → build du site → commit + push
         ▼
 R2 : jnm-games/<slug>/<version>/<slug>-v<version>-{windows-x64.exe|android.apk|macos.zip}
 Site : content/games/<slug>/game.json  →  /jeux/ et /jeux/<slug>/ (les anciennes adresses /releases/… redirigent)
 ```
 
+`release.ps1 ship <jeu> -Notes "…"` enchaîne tout. C'est ce qu'utilise le skill `/release-game`.
+
 ## Commandes
 
 ```powershell
+./tools/release.ps1 ship    commun -Notes "…"      # tout : version +1, export, tests, captures, mise en ligne
+./tools/release.ps1 doctor  commun                 # contrôle et corrige les presets
+./tools/release.ps1 bump    commun                 # version +1 seulement
 ./tools/release.ps1 build   commun                 # exporte les 3 plateformes
-./tools/release.ps1 shots   commun                 # captures (tools/shots.gd du jeu, sinon écran titre)
-./tools/release.ps1 publish commun -Notes "…"      # met en ligne
+./tools/release.ps1 shots   commun                 # 10 captures
+./tools/release.ps1 publish commun -Notes "…"      # met en ligne la version préparée
 ./tools/release.ps1 list                           # jeux et versions (entre parenthèses : archivées)
 ```
 
+Contrôles avant mise en ligne (un échec bloque la publication) :
+
+- **Tests** : chaque `tests/test_*.gd` du projet est lancé en headless ; un code de sortie non nul bloque (`-SkipTests` pour passer outre).
+- **Test de démarrage** : l'exe Windows exporté est lancé sans fenêtre pendant 300 images ; il doit quitter avec le code 0.
+  Les erreurs de script au démarrage sont signalées.
+- Tests, démarrage et captures tournent avec `user://` redirigé vers un dossier jetable (`override.cfg` temporaire) :
+  la vraie sauvegarde n'est jamais modifiée.
+
+Captures (`shots`) : si le projet a un `tools/shots.gd`, il est utilisé (`extends SceneTree` → lancé avec `-s` ;
+`extends Node` → injecté en autoload, lit `JNM_SHOTS_DIR`). L'explorateur générique `tools/godot/jnm_autoshots.gd`
+complète jusqu'à 10 images en cliquant les boutons et en envoyant touches et clics.
+
 Options utiles :
 
+- `ship -Shots` : refaire les captures. `ship -NoBump` : garder la version. `ship -Version 0.100` : imposer un numéro.
 - `build -Windows <exe> -Android <apk> -Mac <zip>` : publier des builds déjà faits sans réexporter.
 - `build -Platforms windows,android` : seulement certaines plateformes.
 - `build -Force` : remplacer une version déjà publiée.

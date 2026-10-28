@@ -667,6 +667,140 @@
     cursor: pointer;
 }
 
+/* ---------- carrousel des captures ---------- */
+
+.carousel {
+    --interval: 1s;
+}
+
+.car-viewport {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: #000;
+    aspect-ratio: var(--ratio, 16 / 9);
+    touch-action: pan-y;
+}
+
+.car-track {
+    display: flex;
+    height: 100%;
+    transition: transform 0.45s cubic-bezier(0.22, 0.8, 0.24, 1);
+}
+
+.car-slide {
+    flex: 0 0 100%;
+    height: 100%;
+    padding: 0;
+    border: 0;
+    background: #000;
+    cursor: zoom-in;
+}
+
+.car-slide img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    user-select: none;
+}
+
+.pixel .car-slide img {
+    image-rendering: pixelated;
+}
+
+.car-nav {
+    position: absolute;
+    top: 50%;
+    width: 2.4rem;
+    height: 2.4rem;
+    margin-top: -1.2rem;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.85);
+    color: var(--ink);
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    backdrop-filter: blur(6px);
+}
+
+.car-prev { left: 0.6rem; }
+.car-next { right: 0.6rem; }
+
+.car-viewport:hover .car-nav,
+.car-nav:focus-visible {
+    opacity: 1;
+}
+
+.car-dots {
+    display: flex;
+    justify-content: center;
+    gap: 0.35rem;
+    margin-top: 0.7rem;
+}
+
+.car-dot {
+    position: relative;
+    width: 1.1rem;
+    height: 0.32rem;
+    padding: 0;
+    border: 0;
+    border-radius: 999px;
+    background: var(--line);
+    overflow: hidden;
+    cursor: pointer;
+    transition: width 0.3s ease, background-color 0.2s ease;
+}
+
+/* Zone de clic plus haute que la pastille. */
+.car-dot::before {
+    content: "";
+    position: absolute;
+    inset: -0.5rem -0.15rem;
+}
+
+.car-dot:hover {
+    background: var(--line-strong);
+}
+
+.car-dot[aria-current="true"] {
+    width: 2.6rem;
+    background: var(--line);
+}
+
+/* Barre de progression jusqu'à l'image suivante. */
+.car-dot span {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--ink);
+    transform: scaleX(0);
+    transform-origin: left;
+}
+
+.car-dot[aria-current="true"] span {
+    transform: scaleX(1);
+}
+
+.carousel.is-playing .car-dot[aria-current="true"] span {
+    animation: car-progress var(--interval) linear both;
+}
+
+@keyframes car-progress {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .car-track {
+        transition: none;
+    }
+}
+
 @media (max-width: 52rem) {
     .game-top,
     .game-body {

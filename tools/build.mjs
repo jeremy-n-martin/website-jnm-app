@@ -73,6 +73,19 @@ function hue(slug) {
     return h;
 }
 
+// Dimensions d'un WebP (VP8, VP8L ou VP8X) sans dépendance.
+function webpSize(path) {
+    try {
+        const b = readFileSync(path);
+        if (b.toString('ascii', 0, 4) !== 'RIFF' || b.toString('ascii', 8, 12) !== 'WEBP') return null;
+        const chunk = b.toString('ascii', 12, 16);
+        if (chunk === 'VP8 ') return [b.readUInt16LE(26) & 0x3fff, b.readUInt16LE(28) & 0x3fff];
+        if (chunk === 'VP8L') { const v = b.readUInt32LE(21); return [(v & 0x3fff) + 1, ((v >> 14) & 0x3fff) + 1]; }
+        if (chunk === 'VP8X') return [b.readUIntLE(24, 3) + 1, b.readUIntLE(27, 3) + 1];
+    } catch { /* fichier absent : format par défaut */ }
+    return null;
+}
+
 const fileUrl = (f) => `${SITE.downloadBase.replace(/\/$/, '')}/${f.file}`;
 
 // ---------- chargement des jeux ----------
@@ -211,12 +224,19 @@ function downloadRow(p, f, primary = false) {
 function gamePage(g) {
     const shots = g.media.screenshots ?? [];
     const v = g.latest;
+    // Le cadre prend le format réel des captures (pas de bandes noires).
+    const dims = shots.length ? webpSize(join(GAMES_DIR, g.slug, shots[0])) : null;
+    const ratio = dims ? `${dims[0]} / ${dims[1]}` : '16 / 9';
     const gallery = shots.length
-        ? `<div class="gallery" data-gallery>
-                <button type="button" class="gallery-main" data-open aria-label="Agrandir la capture">
-                    <img src="/jeux/${g.slug}/${shots[0]}" alt="Capture de ${esc(g.title)}" decoding="async">
-                </button>
-                ${shots.length > 1 ? `<div class="thumbs">${shots.map((s, i) => `<button type="button" class="thumb${i ? '' : ' is-active'}" data-src="/jeux/${g.slug}/${s}" aria-label="Capture ${i + 1}"><img src="/jeux/${g.slug}/${s}" alt="" loading="lazy"></button>`).join('')}</div>` : ''}
+        ? `<div class="carousel" data-carousel style="--ratio: ${ratio}" aria-roledescription="carrousel" aria-label="Captures de ${esc(g.title)}">
+                <div class="car-viewport">
+                    <div class="car-track">
+                        ${shots.map((s, i) => `<button type="button" class="car-slide" data-index="${i}" aria-label="Agrandir la capture ${i + 1} sur ${shots.length}"><img src="/jeux/${g.slug}/${s}" alt="Capture ${i + 1} de ${esc(g.title)}" ${i ? 'loading="lazy" ' : ''}decoding="async" draggable="false"></button>`).join('')}
+                    </div>
+                    ${shots.length > 1 ? `<button type="button" class="car-nav car-prev" aria-label="Capture précédente">‹</button>
+                    <button type="button" class="car-nav car-next" aria-label="Capture suivante">›</button>` : ''}
+                </div>
+                ${shots.length > 1 ? `<div class="car-dots">${shots.map((_, i) => `<button type="button" class="car-dot" data-index="${i}" aria-label="Capture ${i + 1}"${i ? '' : ' aria-current="true"'}><span></span></button>`).join('')}</div>` : ''}
             </div>`
         : `<div class="gallery">${cover(g, 'gallery-fallback')}</div>`;
 
