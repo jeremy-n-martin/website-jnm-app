@@ -4,6 +4,7 @@
 
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -12,6 +13,18 @@ const GAMES_DIR = join(ROOT, 'content', 'games');
 const SITE = JSON.parse(readFileSync(join(ROOT, 'content', 'site.json'), 'utf8'));
 // Service des demandes (feedback/) ; FEEDBACK_API permet de viser un service local pour les essais.
 const FEEDBACK_API = (process.env.FEEDBACK_API ?? SITE.feedbackApi ?? '').replace(/\/$/, '');
+
+// CSS / JS servis avec une empreinte de leur contenu (?v=…) : une mise à jour s'applique tout de suite,
+// sans attendre la fin du cache du navigateur.
+const ASSET_HASH = new Map();
+function asset(path) {
+    if (!ASSET_HASH.has(path)) {
+        const file = join(ROOT, path.replace(/^\//, ''));
+        ASSET_HASH.set(path, existsSync(file) ? createHash('sha1').update(readFileSync(file)).digest('hex').slice(0, 10) : '');
+    }
+    const v = ASSET_HASH.get(path);
+    return v ? `${path}?v=${v}` : path;
+}
 
 // Captures montrées dans le carrousel d'une fiche (les suivantes sont ignorées).
 const MAX_SHOTS = 3;
@@ -135,15 +148,15 @@ function layout({ title, description, path, image, body, scripts = [], bodyClass
     <meta property="og:url" content="${url}">
     <meta property="og:image" content="${img}">
     <meta name="twitter:card" content="summary_large_image">
-    <link rel="stylesheet" href="/styles.css">
-    <link rel="stylesheet" href="/assets/releases.css">
+    <link rel="stylesheet" href="${asset('/styles.css')}">
+    <link rel="stylesheet" href="${asset('/assets/releases.css')}">
     <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
 </head>
 <body class="releases${bodyClass ? ` ${bodyClass}` : ''}">
     <canvas id="plexus-canvas" aria-hidden="true"></canvas>
 ${body}
-    <script src="/script.js" defer></script>
-${scripts.map((s) => `    <script src="${s}" defer></script>`).join('\n')}
+    <script src="${asset('/script.js')}" defer></script>
+${scripts.map((s) => `    <script src="${asset(s)}" defer></script>`).join('\n')}
 </body>
 </html>
 `;
@@ -474,6 +487,14 @@ rmSync(DIST, { recursive: true, force: true });
 mkdirSync(DIST, { recursive: true });
 for (const entry of STATIC) {
     if (existsSync(join(ROOT, entry))) cpSync(join(ROOT, entry), join(DIST, entry), { recursive: true });
+}
+// Pages statiques copiées telles quelles : leurs CSS / JS reçoivent aussi l'empreinte.
+for (const page of ['index.html', '404.html']) {
+    const file = join(DIST, page);
+    if (!existsSync(file)) continue;
+    const html = readFileSync(file, 'utf8').replace(/(href|src)="(\/?)((?:assets\/)?[\w.-]+\.(?:css|js))"/g,
+        (m, attr, slash, path) => `${attr}="${slash}${asset('/' + path).slice(1)}"`);
+    writeFileSync(file, html);
 }
 
 const games = loadGames();
