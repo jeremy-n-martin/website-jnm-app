@@ -1,0 +1,49 @@
+{
+  "title": "Parjure",
+  "source": "parjure",
+  "tagline": "Défends ton client devant le jury. Vrai, à moitié vrai ou inventé : à toi de choisir.",
+  "summary": "Dans **Parjure**, tu plaides devant un tribunal. Chaque procès oppose des faits historiques, des sciences à la mémoire, et tu dois faire pencher le jury en ta faveur.\n\nTu peux avancer la vérité, appuyée par des preuves de plus en plus solides, ou un fait inventé, plus séduisant mais risqué : si le parjure est découvert, la sanction tombe. Chaque accusé a son style, **Logos**, **Ethos** ou **Pathos**, et les articles du tribunal changent les règles d'un procès à l'autre.\n\nQuatre procès : la Science, la Mémoire, la Terre et les Machines. Les faits vrais sont sourcés : on apprend aussi en jouant.",
+  "controls": "- Souris ou doigt : choisis tes arguments et tes preuves.",
+  "genres": [
+    "Narratif",
+    "Stratégie",
+    "Cartes"
+  ],
+  "players": "Solo",
+  "language": "Français",
+  "status": "Prototype",
+  "pixelArt": false,
+  "media": {
+    "cover": "media/shot-01.webp",
+    "icon": "media/icon.png",
+    "screenshots": [
+      "media/shot-01.webp"
+    ]
+  },
+  "versions": [
+    {
+      "version": "0.1.0",
+      "date": "2026-10-28",
+      "notes": "",
+      "milestone": false,
+      "available": true,
+      "files": {
+        "windows": {
+          "file": "parjure/0.1.0/parjure-v0.1.0-windows-x64.exe",
+          "size": 97549232,
+          "sha256": "80d8682f0cd431e409c9e262c964c6ee3ad44858add5f4ed30353f03439d9d28"
+        },
+        "android": {
+          "file": "parjure/0.1.0/parjure-v0.1.0-android.apk",
+          "size": 25395952,
+          "sha256": "7c6ff6a88f263234d8084107c2aec4235b5fd497d2d1e9808be02b764acadf0f"
+        },
+        "macos": {
+          "file": "parjure/0.1.0/parjure-v0.1.0-macos.zip",
+          "size": 57414859,
+          "sha256": "8c9694f2c4ed1817b271de0cd48c16bf96e09d69a675958725aecaa7d41c12c5"
+        }
+      }
+    }
+  ]
+}

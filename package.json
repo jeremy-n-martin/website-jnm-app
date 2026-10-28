@@ -2,6 +2,7 @@
   "name": "website-jnm-app",
   "private": true,
   "scripts": {
-    "dev": "npx --yes serve . -l 3000"
+    "build": "node tools/build.mjs",
+    "dev": "node tools/build.mjs && npx --yes serve dist -l 3000"
   }
 }

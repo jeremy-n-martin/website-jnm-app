@@ -1,0 +1,49 @@
+{
+  "title": "Les Mots Perdus",
+  "source": "ortho",
+  "tagline": "Un jeu d'orthophonie : une histoire, des énigmes de logique et les règles d'orthographe, avec les syllabes en couleurs.",
+  "summary": "Les Mots Perdus est une aventure pour apprendre l'orthographe en jouant. On traverse quatre mondes, de la **Grande Bibliothèque** à la **Tour du Grignotin**, et chaque niveau mêle un bout d'histoire, une fiche de règle et des énigmes.\n\nLes mots sont découpés selon la **méthode syllabique en couleurs**, pour aider à lire. Les règles abordées vont des syllabes et des lettres muettes jusqu'aux homophones (*a/à*, *et/est*, *son/sont*, *ou/où*) et à l'accord du verbe.\n\nOnze types de mini-jeux s'enchaînent : quiz, phrases à trous, mots à remettre dans l'ordre, tri dans des paniers, intrus, suites logiques, paires, mémoire, mots à écrire lettre par lettre…\n\nEn option, des thèmes Halloween et Noël changent les décors.",
+  "controls": "- Souris ou doigt : on touche, on glisse, on relie.\n- Le clavier sert pour les énigmes où il faut écrire un mot.",
+  "genres": [
+    "Éducatif",
+    "Orthographe",
+    "Logique"
+  ],
+  "players": "Solo",
+  "language": "Français",
+  "status": "Alpha",
+  "pixelArt": false,
+  "media": {
+    "cover": "media/shot-01.webp",
+    "icon": "media/icon.png",
+    "screenshots": [
+      "media/shot-01.webp"
+    ]
+  },
+  "versions": [
+    {
+      "version": "0.008",
+      "date": "2026-10-28",
+      "notes": "",
+      "milestone": false,
+      "available": true,
+      "files": {
+        "windows": {
+          "file": "les-mots-perdus/0.008/les-mots-perdus-v0.008-windows-x64.exe",
+          "size": 100420272,
+          "sha256": "2427969fb32c596c18ab6a7811654528781e3096ed609c157221580e474e5933"
+        },
+        "android": {
+          "file": "les-mots-perdus/0.008/les-mots-perdus-v0.008-android.apk",
+          "size": 54395734,
+          "sha256": "75ab01973f32471e36ef2e19a7dfcb2360a6feb266b9f1f673af1a52b73dcab7"
+        },
+        "macos": {
+          "file": "les-mots-perdus/0.008/les-mots-perdus-v0.008-macos.zip",
+          "size": 61370124,
+          "sha256": "5b41f273c9ee3f319c9445c9b0b074029ad5252a68458a634bd78a5902867e99"
+        }
+      }
+    }
+  ]
+}

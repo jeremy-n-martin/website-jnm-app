@@ -1,0 +1,337 @@
+// Génère le site statique dans dist/ : pages d'accueil existantes + section /releases
+// (dashboard et une fiche par jeu) à partir de content/games/<slug>/game.json.
+// Aucune dépendance : `node tools/build.mjs`.
+
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const DIST = join(ROOT, 'dist');
+const GAMES_DIR = join(ROOT, 'content', 'games');
+const SITE = JSON.parse(readFileSync(join(ROOT, 'content', 'site.json'), 'utf8'));
+
+const STATIC = ['index.html', '404.html', 'CNAME', 'favicon.ico', 'profile.png', 'script.js', 'styles.css', 'icons', 'images', 'assets'];
+
+const PLATFORMS = {
+    windows: { label: 'Windows', detail: 'Windows 10 / 11 · 64 bits' },
+    android: { label: 'Android', detail: 'APK · Android 7+' },
+    macos: { label: 'macOS', detail: 'Universel · Intel et Apple Silicon' },
+};
+
+const ICONS = {
+    windows: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5 10.5 4.4v7.1H3zm0 13L10.5 19.6v-7H3zm8.5 1.2L21 21V12.6h-9.5zm0-15.4v7.2H21V3z"/></svg>',
+    android: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.2 9h9.6c.7 0 1.2.5 1.2 1.2V17c0 .7-.5 1.2-1.2 1.2H16V21a1 1 0 1 1-2 0v-2.8h-4V21a1 1 0 1 1-2 0v-2.8h-.8c-.7 0-1.2-.5-1.2-1.2v-6.8C6 9.5 6.5 9 7.2 9zM4 9.5a1 1 0 0 1 2 0v5a1 1 0 1 1-2 0zm14 0a1 1 0 1 1 2 0v5a1 1 0 1 1-2 0zM8.1 3.2l.9 1.4A6.2 6.2 0 0 1 12 4c1.1 0 2.1.2 3 .6l.9-1.4a.4.4 0 0 1 .7.4l-.9 1.4A5.3 5.3 0 0 1 18 8H6a5.3 5.3 0 0 1 2.3-3.4l-.9-1.4a.4.4 0 0 1 .7-.4zM9.5 6a.7.7 0 1 0 0 1.4.7.7 0 0 0 0-1.4zm5 0a.7.7 0 1 0 0 1.4.7.7 0 0 0 0-1.4z"/></svg>',
+    macos: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5C4 4.7 4.7 4 5.5 4h13c.8 0 1.5.7 1.5 1.5V15H4zM6 6v7h12V6zM1.5 16.5h21l-.6 1.6c-.3.6-.9.9-1.5.9H3.6c-.6 0-1.2-.3-1.5-.9z"/></svg>',
+    download: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 4a1 1 0 1 1 2 0v9.6l3.3-3.3a1 1 0 1 1 1.4 1.4l-5 5a1 1 0 0 1-1.4 0l-5-5a1 1 0 1 1 1.4-1.4l3.3 3.3zM5 19a1 1 0 1 0 0 2h14a1 1 0 1 0 0-2z"/></svg>',
+};
+
+// ---------- utilitaires ----------
+
+const esc = (s = '') => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function inline(s) {
+    return esc(s)
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/`(.+?)`/g, '<code>$1</code>');
+}
+
+// Markdown minimal : paragraphes, listes « - », titres « ### », gras, italique, code.
+function md(text = '') {
+    const out = [];
+    let list = null;
+    const flush = () => { if (list) { out.push(`<ul>${list.join('')}</ul>`); list = null; } };
+    for (const block of String(text).split(/\n{2,}/)) {
+        for (const line of block.split('\n')) {
+            const t = line.trim();
+            if (!t) continue;
+            if (/^[-*] /.test(t)) { (list ??= []).push(`<li>${inline(t.slice(2))}</li>`); continue; }
+            flush();
+            if (t.startsWith('### ')) out.push(`<h3>${inline(t.slice(4))}</h3>`);
+            else out.push(`<p>${inline(t)}</p>`);
+        }
+        flush();
+    }
+    return out.join('\n');
+}
+
+function humanSize(bytes) {
+    if (!bytes) return '';
+    const mb = bytes / 1024 / 1024;
+    return mb >= 1000 ? `${(mb / 1024).toFixed(1).replace('.', ',')} Go` : `${Math.round(mb)} Mo`;
+}
+
+function humanDate(iso) {
+    if (!iso) return '';
+    return new Date(`${iso}T12:00:00Z`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function hue(slug) {
+    let h = 0;
+    for (const c of slug) h = (h * 31 + c.charCodeAt(0)) % 360;
+    return h;
+}
+
+const fileUrl = (f) => `${SITE.downloadBase.replace(/\/$/, '')}/${f.file}`;
+
+// ---------- chargement des jeux ----------
+
+function loadGames() {
+    if (!existsSync(GAMES_DIR)) return [];
+    const games = [];
+    for (const slug of readdirSync(GAMES_DIR)) {
+        const path = join(GAMES_DIR, slug, 'game.json');
+        if (!existsSync(path)) continue;
+        const g = JSON.parse(readFileSync(path, 'utf8'));
+        if (g.hidden) continue;
+        g.slug = slug;
+        g.versions = (g.versions ?? []).slice().sort((a, b) => (b.date ?? '').localeCompare(a.date ?? '') || b.version.localeCompare(a.version, 'en', { numeric: true }));
+        g.latest = g.versions.find((v) => v.available !== false && Object.keys(v.files ?? {}).length);
+        if (!g.latest) continue; // rien à télécharger : pas de fiche publique
+        g.platforms = Object.keys(PLATFORMS).filter((p) => g.latest.files[p]);
+        g.media ??= {};
+        g.genres ??= [];
+        games.push(g);
+    }
+    return games.sort((a, b) => (b.latest.date ?? '').localeCompare(a.latest.date ?? ''));
+}
+
+// ---------- gabarits ----------
+
+function layout({ title, description, path, image, body, scripts = [], bodyClass = '' }) {
+    const url = `${SITE.siteUrl}${path}`;
+    const img = image ? `${SITE.siteUrl}${image}` : `${SITE.siteUrl}/icons/android-chrome-512x512.png`;
+    return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#ffffff">
+    <title>${esc(title)}</title>
+    <meta name="description" content="${esc(description)}">
+    <link rel="canonical" href="${url}">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="${esc(title)}">
+    <meta property="og:description" content="${esc(description)}">
+    <meta property="og:url" content="${url}">
+    <meta property="og:image" content="${img}">
+    <meta name="twitter:card" content="summary_large_image">
+    <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/assets/releases.css">
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png">
+</head>
+<body class="releases${bodyClass ? ` ${bodyClass}` : ''}">
+    <canvas id="plexus-canvas" aria-hidden="true"></canvas>
+${body}
+    <script src="/script.js" defer></script>
+${scripts.map((s) => `    <script src="${s}" defer></script>`).join('\n')}
+</body>
+</html>
+`;
+}
+
+function cover(g, cls = 'cover') {
+    const src = g.media.cover ?? g.media.screenshots?.[0];
+    if (src) return `<img class="${cls}" src="/releases/${g.slug}/${src}" alt="" loading="lazy" decoding="async">`;
+    const icon = g.media.icon ? `<img src="/releases/${g.slug}/${g.media.icon}" alt="" loading="lazy">` : `<span>${esc(g.title[0])}</span>`;
+    return `<div class="${cls} cover-fallback" style="--h:${hue(g.slug)}">${icon}</div>`;
+}
+
+const platformIcons = (g) => g.platforms.map((p) => `<span class="pf" title="${PLATFORMS[p].label}">${ICONS[p]}</span>`).join('');
+
+function card(g) {
+    const search = [g.title, g.tagline, ...g.genres].join(' ').toLowerCase();
+    return `        <li class="game-card" data-search="${esc(search)}" data-platforms="${g.platforms.join(' ')}" data-genres="${esc(g.genres.join('|'))}" data-date="${g.latest.date ?? ''}" data-title="${esc(g.title.toLowerCase())}">
+            <a href="/releases/${g.slug}/">
+                ${cover(g)}
+                <div class="card-body">
+                    <h2>${esc(g.title)}</h2>
+                    <p>${esc(g.tagline ?? '')}</p>
+                    <div class="card-meta">
+                        <span class="platforms">${platformIcons(g)}</span>
+                        <span>v${esc(g.latest.version)} · ${humanDate(g.latest.date)}</span>
+                    </div>
+                </div>
+            </a>
+        </li>`;
+}
+
+function dashboard(games) {
+    const genres = [...new Set(games.flatMap((g) => g.genres))].sort((a, b) => a.localeCompare(b, 'fr'));
+    const chip = (group, value, label, active = false) => `<button type="button" class="chip${active ? ' is-active' : ''}" data-group="${group}" data-value="${esc(value)}" aria-pressed="${active}">${label}</button>`;
+    const body = `    <div class="page">
+        <nav class="crumbs"><a href="/">Jeremy N. Martin</a></nav>
+        <header class="hero">
+            <h1>Jeux</h1>
+            <p>${games.length} jeux faits avec Godot. Tous gratuits, sans pub, sans compte : on télécharge et on joue, sur Windows, Android et macOS.</p>
+        </header>
+        <div class="toolbar">
+            <input type="search" id="q" placeholder="Rechercher un jeu…" aria-label="Rechercher un jeu" autocomplete="off">
+            <select id="sort" aria-label="Trier">
+                <option value="date">Plus récents</option>
+                <option value="title">A → Z</option>
+            </select>
+        </div>
+        <div class="filters" role="group" aria-label="Plateforme">
+            ${chip('platform', '', 'Toutes plateformes', true)}
+            ${Object.entries(PLATFORMS).map(([k, p]) => chip('platform', k, `${ICONS[k]}${p.label}`)).join('\n            ')}
+        </div>
+        ${genres.length ? `<div class="filters" role="group" aria-label="Genre">
+            ${chip('genre', '', 'Tous genres', true)}
+            ${genres.map((g) => chip('genre', g, esc(g))).join('\n            ')}
+        </div>` : ''}
+        <ul class="game-grid" id="grid">
+${games.map(card).join('\n')}
+        </ul>
+        <p class="empty" id="empty" hidden>Aucun jeu ne correspond.</p>
+    </div>`;
+    return layout({
+        title: 'Jeux · Jeremy N. Martin',
+        description: 'Tous mes jeux Godot, gratuits et sans pub, à télécharger pour Windows, Android et macOS.',
+        path: '/releases/',
+        body,
+        scripts: ['/assets/releases.js'],
+    });
+}
+
+const INSTALL = {
+    windows: 'Lance le fichier <code>.exe</code>, aucune installation. Windows peut afficher « Windows a protégé votre ordinateur » car le jeu n’est pas signé : clique sur <strong>Informations complémentaires</strong> puis <strong>Exécuter quand même</strong>.',
+    android: 'Ouvre le fichier <code>.apk</code> sur ton téléphone. Android demande d’autoriser l’installation depuis cette source (navigateur ou gestionnaire de fichiers) : accepte, puis installe. Les mises à jour s’installent par-dessus sans perdre la progression.',
+    macos: 'Décompresse le <code>.zip</code> puis glisse l’app dans Applications. Le jeu n’est pas notarisé : au premier lancement, fais <strong>clic droit → Ouvrir</strong>, puis confirme. Si macOS dit que l’app est « endommagée », lance dans le Terminal : <code>xattr -cr "/Applications/Nom du jeu.app"</code>.',
+};
+
+function downloadRow(p, f, primary = false) {
+    return `<a class="dl${primary ? ' dl-primary' : ''}" href="${esc(fileUrl(f))}" data-platform="${p}" download>
+                    <span class="dl-icon">${ICONS[p]}</span>
+                    <span class="dl-text"><strong>${PLATFORMS[p].label}</strong><small>${PLATFORMS[p].detail} · ${humanSize(f.size)}</small></span>
+                    <span class="dl-arrow">${ICONS.download}</span>
+                </a>`;
+}
+
+function gamePage(g) {
+    const shots = g.media.screenshots ?? [];
+    const v = g.latest;
+    const gallery = shots.length
+        ? `<div class="gallery" data-gallery>
+                <button type="button" class="gallery-main" data-open aria-label="Agrandir la capture">
+                    <img src="/releases/${g.slug}/${shots[0]}" alt="Capture de ${esc(g.title)}" decoding="async">
+                </button>
+                ${shots.length > 1 ? `<div class="thumbs">${shots.map((s, i) => `<button type="button" class="thumb${i ? '' : ' is-active'}" data-src="/releases/${g.slug}/${s}" aria-label="Capture ${i + 1}"><img src="/releases/${g.slug}/${s}" alt="" loading="lazy"></button>`).join('')}</div>` : ''}
+            </div>`
+        : `<div class="gallery">${cover(g, 'gallery-fallback')}</div>`;
+
+    const facts = [
+        g.genres.length && ['Genre', g.genres.map(esc).join(', ')],
+        g.players && ['Joueurs', esc(g.players)],
+        g.language && ['Langue', esc(g.language)],
+        g.status && ['Statut', esc(g.status)],
+        ['Version', `${esc(v.version)} · ${humanDate(v.date)}`],
+    ].filter(Boolean);
+
+    const versions = g.versions.map((ver) => {
+        const files = ver.available !== false ? Object.keys(PLATFORMS).filter((p) => ver.files?.[p]) : [];
+        return `<li>
+                    <div class="ver-head"><strong>v${esc(ver.version)}</strong><span>${humanDate(ver.date)}</span>${ver.milestone ? '<span class="badge">Jalon</span>' : ''}</div>
+                    ${ver.notes ? `<div class="ver-notes">${md(ver.notes)}</div>` : ''}
+                    ${files.length
+                        ? `<div class="ver-files">${files.map((p) => `<a href="${esc(fileUrl(ver.files[p]))}" download>${ICONS[p]}${PLATFORMS[p].label} · ${humanSize(ver.files[p].size)}</a>`).join('')}</div>`
+                        : '<div class="ver-files"><span class="muted">Archivée, plus téléchargeable</span></div>'}
+                </li>`;
+    }).join('\n                ');
+
+    const checksums = g.platforms.map((p) => `<li><span>${PLATFORMS[p].label}</span><code>${esc(v.files[p].sha256 ?? '')}</code></li>`).join('');
+
+    const body = `    <div class="page">
+        <nav class="crumbs"><a href="/">Jeremy N. Martin</a><span>/</span><a href="/releases/">Jeux</a></nav>
+        <article class="game">
+            <div class="game-top">
+            ${gallery}
+            <aside class="game-side">
+                <h1>${esc(g.title)}</h1>
+                ${g.tagline ? `<p class="tagline">${esc(g.tagline)}</p>` : ''}
+                ${g.genres.length ? `<div class="tags">${g.genres.map((x) => `<span>${esc(x)}</span>`).join('')}</div>` : ''}
+                <div class="downloads" data-downloads>
+                ${g.platforms.map((p, i) => downloadRow(p, v.files[p], i === 0)).join('\n                ')}
+                </div>
+                <p class="free">Gratuit · sans pub · sans compte</p>
+            </aside>
+            </div>
+            <div class="game-body">
+                <section class="prose">
+                    <h2>À propos</h2>
+                    ${md(g.summary ?? g.tagline ?? '')}
+                    ${g.controls ? `<h2>Comment jouer</h2>${md(g.controls)}` : ''}
+                </section>
+                <aside class="facts">
+                    <dl>${facts.map(([k, val]) => `<dt>${k}</dt><dd>${val}</dd>`).join('')}</dl>
+                </aside>
+            </div>
+            <section class="install">
+                <h2>Installer</h2>
+                ${g.platforms.map((p) => `<details${p === g.platforms[0] ? ' open' : ''} data-platform="${p}"><summary>${ICONS[p]}${PLATFORMS[p].label}</summary><p>${INSTALL[p]}</p></details>`).join('\n                ')}
+                <details><summary>Empreintes SHA-256 (v${esc(v.version)})</summary><ul class="sums">${checksums}</ul></details>
+            </section>
+            <section class="versions">
+                <h2>Versions</h2>
+                <ul>
+                ${versions}
+                </ul>
+            </section>
+        </article>
+    </div>
+    <dialog class="lightbox" id="lightbox"><img alt=""><button type="button" class="lb-close" aria-label="Fermer">×</button></dialog>`;
+
+    const image = g.media.cover ? `/releases/${g.slug}/${g.media.cover}` : shots[0] ? `/releases/${g.slug}/${shots[0]}` : undefined;
+    return layout({
+        title: `${g.title} · Jeux · Jeremy N. Martin`,
+        description: g.tagline ?? `${g.title}, jeu gratuit pour ${g.platforms.map((p) => PLATFORMS[p].label).join(', ')}.`,
+        path: `/releases/${g.slug}/`,
+        image,
+        body,
+        bodyClass: g.pixelArt ? 'pixel' : '',
+        scripts: ['/assets/releases.js'],
+    });
+}
+
+// ---------- build ----------
+
+rmSync(DIST, { recursive: true, force: true });
+mkdirSync(DIST, { recursive: true });
+for (const entry of STATIC) {
+    if (existsSync(join(ROOT, entry))) cpSync(join(ROOT, entry), join(DIST, entry), { recursive: true });
+}
+
+const games = loadGames();
+const rel = join(DIST, 'releases');
+mkdirSync(rel, { recursive: true });
+writeFileSync(join(rel, 'index.html'), dashboard(games));
+
+for (const g of games) {
+    const dir = join(rel, g.slug);
+    mkdirSync(dir, { recursive: true });
+    const media = join(GAMES_DIR, g.slug, 'media');
+    if (existsSync(media)) cpSync(media, join(dir, 'media'), { recursive: true });
+    writeFileSync(join(dir, 'index.html'), gamePage(g));
+}
+
+// Index machine-lisible (pour d'autres outils, ou une future app « launcher »).
+writeFileSync(join(rel, 'games.json'), JSON.stringify(games.map((g) => ({
+    slug: g.slug,
+    title: g.title,
+    tagline: g.tagline,
+    genres: g.genres,
+    version: g.latest.version,
+    date: g.latest.date,
+    url: `${SITE.siteUrl}/releases/${g.slug}/`,
+    downloads: Object.fromEntries(g.platforms.map((p) => [p, { url: fileUrl(g.latest.files[p]), size: g.latest.files[p].size, sha256: g.latest.files[p].sha256 }])),
+})), null, 2));
+
+const urls = ['/', '/releases/', ...games.map((g) => `/releases/${g.slug}/`)];
+writeFileSync(join(DIST, 'sitemap.xml'), `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${urls.map((u) => `  <url><loc>${SITE.siteUrl}${u}</loc></url>`).join('\n')}
+</urlset>
+`);
+
+console.log(`dist/ prêt : ${games.length} jeu(x) publié(s).`);

@@ -1,0 +1,38 @@
+{
+  "title": "Courants",
+  "source": "musique",
+  "tagline": "Guide la mélodie d'île en île en modifiant les courants du hasard.",
+  "summary": "Dans **Courants**, la mélodie est une barque qui dérive d'île en île. Chaque île est une note, chaque courant une probabilité : tu ne diriges jamais la barque, tu changes seulement les chances qu'elle a de prendre chaque chemin.\n\nRenforce un courant, coupe-en un pour toujours, transpose une île d'un demi-ton ou retiens la barque un temps de plus. Le but : faire jouer les phrases de la partition avant que la dissonance ne déborde. Neuf Clés modifient les règles, et deux peuvent être équipées à la fois.\n\n- **Mode Écoute** : les mélodies jouent sans fin, avec huit morceaux dédiés et l'édition libre des courants.\n- **Marée du jour** : le même niveau et le même hasard pour tout le monde.",
+  "controls": "- Souris ou doigt : sélectionne un courant ou une île, puis une action.\n- Le temps passe en continu, avec une pause possible.",
+  "genres": [
+    "Puzzle",
+    "Musique"
+  ],
+  "players": "Solo",
+  "language": "Français",
+  "status": "Alpha",
+  "pixelArt": true,
+  "media": {
+    "cover": "media/shot-01.webp",
+    "icon": "media/icon.png",
+    "screenshots": [
+      "media/shot-01.webp"
+    ]
+  },
+  "versions": [
+    {
+      "version": "0.004",
+      "date": "2026-10-28",
+      "notes": "",
+      "milestone": false,
+      "available": true,
+      "files": {
+        "macos": {
+          "file": "courants/0.004/courants-v0.004-macos.zip",
+          "size": 57914541,
+          "sha256": "cd36fa709539846d5f2177f6806d0433a38913f91a4574699dd03e8d7f098989"
+        }
+      }
+    }
+  ]
+}

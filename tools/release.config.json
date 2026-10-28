@@ -1,0 +1,7 @@
+{
+  "godotDir": "D:/soft/Godot",
+  "gamesDir": "D:/godot",
+  "localBuildDir": "D:/build",
+  "keep": 3,
+  "secrets": "~/.jnm/r2.env"
+}

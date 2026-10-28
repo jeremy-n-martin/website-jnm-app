@@ -1,0 +1,49 @@
+{
+  "title": "Les petites missions",
+  "source": "mission",
+  "tagline": "Des petites missions pour apprendre à reconnaître les mots, guidé par la voix, sans écran de lecture.",
+  "summary": "Les petites missions accompagne les enfants qui découvrent la lecture. Une voix donne chaque consigne, les syllabes s'animent au fil de la lecture, et chaque réussite fait apparaître une illustration avec son bruitage.\n\nLe parcours alterne cinq exercices : toucher l'image demandée, reconnaître le bon mot parmi quatre, glisser une image à sa place, donner le bon objet à un animal, puis reconstruire un mot syllabe par syllabe.\n\n**377 consignes, 125 illustrations et 18 régions** réparties sur deux mondes. Tout est en français et fonctionne hors ligne.",
+  "controls": "- Au doigt ou à la souris : toucher et glisser.\n- Le bouton de répétition relit la consigne.",
+  "genres": [
+    "Éducatif",
+    "Lecture",
+    "Enfants"
+  ],
+  "players": "Solo",
+  "language": "Français",
+  "status": "Prototype",
+  "pixelArt": false,
+  "media": {
+    "cover": "media/shot-01.webp",
+    "icon": "media/icon.png",
+    "screenshots": [
+      "media/shot-01.webp"
+    ]
+  },
+  "versions": [
+    {
+      "version": "0.001",
+      "date": "2026-10-28",
+      "notes": "",
+      "milestone": false,
+      "available": true,
+      "files": {
+        "windows": {
+          "file": "les-petites-missions/0.001/les-petites-missions-v0.001-windows-x64.exe",
+          "size": 169440032,
+          "sha256": "dec42493f2fa33311377890ce4fc4a9628381d72ecbd29c6b665a44cd9cd9b55"
+        },
+        "android": {
+          "file": "les-petites-missions/0.001/les-petites-missions-v0.001-android.apk",
+          "size": 108214206,
+          "sha256": "825d8dab8456bb5af2e8b97bf2d59b053dda73c75296532c6515541f2df91c1e"
+        },
+        "macos": {
+          "file": "les-petites-missions/0.001/les-petites-missions-v0.001-macos.zip",
+          "size": 113082576,
+          "sha256": "f100548cb02eb1144fff528d97fb1a05c0faaa2c763f197cf3801a04c94553ee"
+        }
+      }
+    }
+  ]
+}

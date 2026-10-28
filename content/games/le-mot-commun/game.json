@@ -1,0 +1,50 @@
+{
+  "title": "Le Mot Commun",
+  "source": "commun",
+  "tagline": "Quatre mots, un seul point commun. Trouve-le !",
+  "summary": "Quatre mots s'affichent : **Roi, Reine, Fou, Tour**. Quel mot les relie ? *Échecs*. Le Mot Commun est un jeu de mots en pixel art où chaque énigme cache un lien, parfois évident, parfois retors.\n\nLe nombre de lettres est indiqué sous les cases. Si tu bloques, un indice révèle une lettre, mais il coûte une étoile. Six mondes de difficulté croissante, de *Premiers pas* à *Maître des mots*, puis un septième monde, secret.\n\n- **Défi du jour** : la même énigme pour tout le monde, avec une série de jours à prolonger.\n- **Mode Domaine** : des énigmes regroupées par thème.\n- Décors animés pour chaque monde, et Lexi pour te donner un coup de pouce.",
+  "controls": "- Tape les lettres au clavier (les accents sont ignorés : é = E) ou sur le clavier à l'écran.\n- 3 étoiles sans indice, 2 avec un indice, 1 avec deux.",
+  "genres": [
+    "Mots",
+    "Réflexion"
+  ],
+  "players": "Solo",
+  "language": "Français",
+  "status": "Alpha",
+  "pixelArt": true,
+  "media": {
+    "cover": "media/shot-01.webp",
+    "icon": "media/icon.png",
+    "screenshots": [
+      "media/shot-01.webp",
+      "media/shot-02.webp",
+      "media/shot-03.webp"
+    ]
+  },
+  "versions": [
+    {
+      "version": "0.006",
+      "date": "2026-10-28",
+      "notes": "Mode Domaine, options et décors.",
+      "milestone": false,
+      "available": true,
+      "files": {
+        "windows": {
+          "file": "le-mot-commun/0.006/le-mot-commun-v0.006-windows-x64.exe",
+          "size": 114292216,
+          "sha256": "82d7f70aa9b4d460c1f9bcacf09b7ca3a4722ee7b6093b6a07fc905780493da6"
+        },
+        "android": {
+          "file": "le-mot-commun/0.006/le-mot-commun-v0.006-android.apk",
+          "size": 56907503,
+          "sha256": "7821e1c60e9da83d51aec9e99f1724206d22def63711ac049a70a09993e0d58e"
+        },
+        "macos": {
+          "file": "le-mot-commun/0.006/le-mot-commun-v0.006-macos.zip",
+          "size": 65251600,
+          "sha256": "2a2e95777c321920bebb02889b23ea31537f0cf24da77e036f9c32dc82a7ad47"
+        }
+      }
+    }
+  ]
+}
