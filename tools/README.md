@@ -11,7 +11,7 @@ D:\godot\<jeu>            projet Godot (source, pas de git)
         │  release.ps1 build      export des 3 plateformes, tests du projet, test de démarrage de l'exe
         ▼
 %LOCALAPPDATA%\jnm-release\stage\<slug>\<version>\   + D:\build\{windows,android,mac}\<Nom> v<version>.<ext>
-        │  release.ps1 shots      10 captures → content/games/<slug>/media/shot-XX.webp
+        │  release.ps1 shots      3 captures → content/games/<slug>/media/shot-XX.webp
         │  release.ps1 publish    envoi R2 → game.json → rétention → build du site → commit + push
         ▼
 R2 : jnm-games/<slug>/<version>/<slug>-v<version>-{windows-x64.exe|android.apk|macos.zip}
@@ -27,7 +27,7 @@ Site : content/games/<slug>/game.json  →  /jeux/ et /jeux/<slug>/ (les ancienn
 ./tools/release.ps1 doctor  commun                 # contrôle et corrige les presets
 ./tools/release.ps1 bump    commun                 # version +1 seulement
 ./tools/release.ps1 build   commun                 # exporte les 3 plateformes
-./tools/release.ps1 shots   commun                 # 10 captures
+./tools/release.ps1 shots   commun                 # 3 captures (-Count 10 pour plus)
 ./tools/release.ps1 publish commun -Notes "…"      # met en ligne la version préparée
 ./tools/release.ps1 list                           # jeux et versions (entre parenthèses : archivées)
 ```
@@ -42,7 +42,7 @@ Contrôles avant mise en ligne (un échec bloque la publication) :
 
 Captures (`shots`) : si le projet a un `tools/shots.gd`, il est utilisé (`extends SceneTree` → lancé avec `-s` ;
 `extends Node` → injecté en autoload, lit `JNM_SHOTS_DIR`). L'explorateur générique `tools/godot/jnm_autoshots.gd`
-complète jusqu'à 10 images en cliquant les boutons et en envoyant touches et clics.
+complète jusqu'à 3 images (`-Count`) en cliquant les boutons et en envoyant touches et clics.
 
 Options utiles :
 

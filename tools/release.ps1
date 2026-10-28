@@ -7,7 +7,8 @@
     release.ps1 bump    <jeu>   Version +1 (0.007 → 0.008) dans project.godot et tous les presets.
     release.ps1 doctor  <jeu>   Vérifie et corrige les presets (exe autonome x64, macOS universel, APK ARM).
     release.ps1 build   <jeu>   Exporte Windows / Android / macOS, lance les tests et un test de démarrage.
-    release.ps1 shots   <jeu>   10 captures : tools/shots.gd du jeu s'il existe, complété par l'explorateur.
+    release.ps1 shots   <jeu>   3 captures (-Count pour changer) : tools/shots.gd du jeu s'il existe, sinon
+                                l'explorateur. Une seule ouverture de Godot quand c'est possible.
     release.ps1 publish <jeu>   Envoie la version préparée sur R2, met à jour la fiche, applique la
                                 rétention, puis commit + push du site (GitHub Pages redéploie).
     release.ps1 list            Liste les jeux publiés et leurs versions.
@@ -36,7 +37,7 @@ param(
     [string]$Android,
     [string]$Mac,
     [string]$From,
-    [int]$Count = 10,
+    [int]$Count = 3,
     [string]$Notes,
     [switch]$Milestone,
     [int]$Keep,
