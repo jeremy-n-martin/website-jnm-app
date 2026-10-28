@@ -347,7 +347,10 @@ function Invoke-Build {
             'macos' {
                 if ($main.Extension -ne '.zip') { Fail "macos : attendu un .zip, reçu $($main.Name)" }
                 $zip = [IO.Compression.ZipFile]::OpenRead($main.FullName)
-                try { if (-not ($zip.Entries | Where-Object FullName -match '\.app/Contents/MacOS/')) { Fail 'macos : le zip ne contient pas de .app' } } finally { $zip.Dispose() }
+                try {
+                    if (-not ($zip.Entries | Where-Object FullName -match '\.app/Contents/MacOS/')) { Fail 'macos : le zip ne contient pas de .app' }
+                    if (-not ($zip.Entries | Where-Object FullName -match '\.app/Contents/_CodeSignature/CodeResources$')) { Fail 'macos : app non signée, elle ne s''ouvrira pas sur un Mac Apple Silicon. Lance « doctor ».' }
+                } finally { $zip.Dispose() }
                 $name = "$slug-v$ver-macos.zip"; Move-Item $main.FullName (Join-Path $stage $name)
             }
         }
@@ -697,6 +700,8 @@ function Invoke-Doctor {
     $m = Find-Preset $presets 'macos'
     if ($m) {
         if (Set-PresetOption $proj $m 'binary_format/architecture' '"universal"') { Info 'macOS : universel (Intel + Apple Silicon)'; $fixed++ }
+        # Sans signature (même ad hoc), un Mac Apple Silicon refuse l'app : « endommagée, impossible de l'ouvrir ».
+        if ($m.options['codesign/codesign'] -eq '0' -and (Set-PresetOption $proj $m 'codesign/codesign' '1')) { Info 'macOS : signature ad hoc activée'; $fixed++ }
     } else { Warn 'Pas de preset macOS' }
     $a = Find-Preset $presets 'android'
     if ($a) {
