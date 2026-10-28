@@ -35,6 +35,10 @@ Site : content/games/<slug>/game.json  →  /jeux/ et /jeux/<slug>/ (les ancienn
 Contrôles avant mise en ligne (un échec bloque la publication) :
 
 - **Tests** : chaque `tests/test_*.gd` du projet est lancé en headless ; un code de sortie non nul bloque (`-SkipTests` pour passer outre).
+- **Version** : les numéros vus par les joueurs (project.godot, Android `version/name`, macOS `short_version`) doivent
+  être identiques. Puis le jeu est lancé sans fenêtre avec `tools/godot/jnm_versioncheck.gd` injecté : la version
+  doit apparaître dans un texte visible de l'écran titre, et aucun autre numéro de version ne doit y figurer.
+  Un texte placé ailleurs qu'en bas, ou qui chevauche un autre texte, donne un avertissement.
 - **Test de démarrage** : l'exe Windows exporté est lancé sans fenêtre pendant 300 images ; il doit quitter avec le code 0.
   Les erreurs de script au démarrage sont signalées.
 - Tests, démarrage et captures tournent avec `user://` redirigé vers un dossier jetable (`override.cfg` temporaire) :

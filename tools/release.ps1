@@ -302,6 +302,8 @@ function Invoke-Build {
         & $godot --headless --path $proj --import 2>&1 | Out-Null
         if ($LASTEXITCODE -ne 0) { Warn "import terminé avec le code $LASTEXITCODE (on continue)" }
         if (-not $SkipTests) { Invoke-ProjectTests $proj $godot $slug }
+        Test-PresetVersions $proj $ver
+        Test-VersionDisplay $proj $godot $slug $ver
     }
 
     $files = [ordered]@{}
@@ -610,6 +612,60 @@ function Invoke-ProjectTests([string]$proj, [string]$godot, [string]$slug) {
             Info "✓ $($t.Name)"
         }
     } finally { Remove-Isolation $iso }
+}
+
+# Lance le jeu sans fenêtre et lit l'écran titre : la version attendue doit y être affichée, en bas,
+# et aucune autre version (numéro écrit en dur et oublié) ne doit apparaître.
+function Test-VersionDisplay([string]$proj, [string]$godot, [string]$slug, [string]$ver) {
+    Step "Version affichée à l'écran titre (v$ver)"
+    $script = (Join-Path $PSScriptRoot 'godot/jnm_versioncheck.gd') -replace '\\', '/'
+    $iso = New-Isolation $proj "jnm-version/$slug" "`n[autoload]`nJnmVersionCheck=`"*$script`"`n"
+    if (-not $iso) { Fail 'override.cfg déjà présent dans le projet : retire-le avant de compiler.' }
+    $real = Get-UserDir $proj
+    New-Item -ItemType Directory -Force $iso.isolated | Out-Null
+    if (Test-Path $real) { Copy-Item (Join-Path $real '*') $iso.isolated -Recurse -Force -Exclude 'shader_cache', 'vulkan', 'logs' }
+    $log = Join-Path $env:TEMP "jnm-version-$slug.log"
+    $env:JNM_VERSION_CHECK = $ver
+    try {
+        $proc = Start-Process $godot -ArgumentList '--headless', '--path', "`"$proj`"", '--quit-after', '3000' -PassThru -NoNewWindow -RedirectStandardOutput $log -RedirectStandardError "$log.err"
+        if (-not $proc.WaitForExit(90000)) { $proc.Kill() }
+    } finally {
+        Remove-Isolation $iso
+        Remove-Item Env:JNM_VERSION_CHECK -ErrorAction SilentlyContinue
+    }
+    $line = Select-String $log -Pattern '^JNM_VERSION (.*)$' | Select-Object -Last 1
+    $verdict = if ($line) { $line.Matches[0].Groups[1].Value } else { 'NORESULT' }
+    $parts = $verdict -split '\|'
+    switch ($parts[0]) {
+        'OK' {
+            $bottom = [double]$parts[2] / [math]::Max(1, [double]$parts[3])
+            if ($bottom -lt 0.75) { Warn "« $($parts[1]) » est affiché, mais pas en bas de l'écran titre." }
+            elseif ($parts[4]) { Warn "« $($parts[1]) » chevauche un autre texte de l'écran titre (« $($parts[4]) »)." }
+            else { Info "✓ « $($parts[1]) » en bas de l'écran titre, sans chevauchement" }
+        }
+        'STALE' { Fail "L'écran titre affiche une autre version : « $($parts[1]) » (attendu v$ver). Lis la version depuis ProjectSettings au lieu de l'écrire en dur." }
+        'MISSING' { Fail "v$ver n'apparaît pas sur l'écran titre. Ajoute en bas de l'écran titre un texte « v » + ProjectSettings.get_setting(`"application/config/version`")." }
+        default { Fail "Contrôle de version sans résultat (journal : $log)." }
+    }
+}
+
+# Les numéros vus par les joueurs (jeu, Android, macOS) doivent tous correspondre à la version compilée.
+# Les numéros techniques (fichier Windows, build macOS) sont réécrits par « bump » mais pas contrôlés.
+function Test-PresetVersions([string]$proj, [string]$ver) {
+    $presets = Read-Presets $proj
+    $want = @(
+        @('android', 'version/name', $ver),
+        @('macos', 'application/short_version', $ver)
+    )
+    $cfg = Read-ProjectSetting $proj 'config/version'
+    $bad = @(if ($cfg -ne $ver) { "project.godot config/version = « $cfg »" })
+    foreach ($w in $want) {
+        $p = Find-Preset $presets $w[0]
+        if (-not $p) { continue }
+        $v = "$($p.options[$w[1]])".Trim('"')
+        if ($v -ne $w[2]) { $bad += "$($w[0]) $($w[1]) = « $v »" }
+    }
+    if ($bad) { Fail "Numéros de version incohérents (attendu v$ver) : $($bad -join ' ; '). Lance « bump <jeu> -Version $ver » pour tout aligner." }
 }
 
 # Démarre l'exe exporté sans fenêtre pendant ~5 s : il doit se lancer et quitter proprement.
