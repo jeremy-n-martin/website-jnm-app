@@ -100,8 +100,41 @@ les autres sont supprimées de R2 mais gardent leur ligne de changelog. Coût in
    ```
 4. **rclone** : `winget install Rclone.Rclone` (aucune configuration : le script la passe par variables d'environnement).
 
-## Signature
+## Signature et confiance
 
-- **Android** : le keystore du preset signe l'APK. Garder le même pour un jeu, sinon les mises à jour ne
-  s'installent plus par-dessus l'ancienne version.
-- **Windows / macOS** : non signés. Les fiches expliquent comment passer SmartScreen et Gatekeeper.
+- **Android** : une clé par jeu dans `~/.jnm/keystores/<slug>.keystore` + `<slug>.json` (alias, mot de passe,
+  empreinte SHA-256). `doctor` la crée quand le preset signe avec la clé de debug de Godot ; une clé choisie
+  dans le preset est respectée. `build` la passe à Godot par `GODOT_ANDROID_KEYSTORE_RELEASE_*` (rien n'est
+  écrit dans le projet) puis vérifie l'APK avec `apksigner` : un APK signé avec une autre clé bloque tout.
+  La première version signée avec une nouvelle clé reçoit une note « désinstalle l'ancienne version ».
+  **Sauvegarder `~/.jnm` ailleurs** (clé USB, coffre de mots de passe) : sans la clé, plus aucune mise à jour.
+- **Windows** : `doctor` écrit l'éditeur (`publisher`), le nom et la description dans le .exe ; `build` les vérifie.
+  Pas de signature de code (payante) : la fiche explique comment passer SmartScreen.
+- **macOS** : signature ad hoc obligatoire (sans elle, « app endommagée » sur Apple Silicon) ; `build` refuse un zip
+  non signé. Pas de notarisation (payante) : la fiche explique « Ouvrir quand même ».
+- **VirusTotal** (facultatif) : avec `VT_API_KEY=…` dans `~/.jnm/virustotal.env` (compte gratuit), `publish` envoie
+  chaque fichier et la fiche affiche un lien d'analyse. Un échec n'empêche jamais la publication.
+- Faux positif de l'antivirus Windows : le déclarer sur https://www.microsoft.com/wdsi/filesubmission.
+
+## Dépublier
+
+`"hidden": true` dans `game.json`, puis commit + push : la fiche disparaît du site, les fichiers restent sur R2.
+
+## Demandes des joueurs (`feedback/`)
+
+Service Cloudflare Workers + D1 sur `api.jnm.app` : formulaire et suivi sur `/jeux/ameliorations/`, bloc
+« Améliorer » sur chaque fiche. Les détails envoyés restent privés ; seuls les titres relus sont publics.
+La page n'est générée que si `feedbackApi` est renseigné dans `content/site.json`.
+
+```powershell
+node tools/feedback.mjs list --status attente        # demandes à relire
+node tools/feedback.mjs set <code> --status prevue --note "…"   # tranchée : devient publique
+node tools/feedback.mjs done 0.009 <code> <code>     # implémentées dans cette version
+node tools/feedback.mjs delete <code>                # spam
+```
+
+Mise en place : `cd feedback && npm install && npx wrangler login`, `npx wrangler d1 create jnm-feedback`
+(reporter l'id dans `wrangler.toml`), `npm run schema:remote`, `npx wrangler secret put ADMIN_TOKEN` et
+`IP_SALT`, `npm run deploy`. Le jeton va aussi dans `~/.jnm/feedback.env` (`FEEDBACK_ADMIN_TOKEN=…`).
+Essai local : `npm run schema:local`, `.dev.vars` avec les deux secrets, `npm run dev`, puis
+`FEEDBACK_API=http://localhost:8787/v1 node tools/build.mjs`.
