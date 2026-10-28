@@ -249,35 +249,22 @@
 
 /* ---------- fiche jeu ---------- */
 
-/* Une seule grille : captures puis texte à gauche, colonne d'achat à droite sur toute la hauteur
-   (elle suit le défilement), pour qu'aucune des deux colonnes ne laisse de vide entre ses blocs. */
+/* Deux colonnes indépendantes, chacune empilée sans vide : à gauche captures, présentation,
+   installation ; à droite titre, téléchargements, infos, demandes et versions. Sur téléphone, les
+   colonnes s'effacent (display: contents) et les blocs se réordonnent : titre et téléchargements
+   juste sous la capture, versions à la fin. */
 .game {
     display: grid;
     grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
-    grid-template-areas:
-        "media side"
-        "main  side";
-    gap: 2.5rem 1.75rem;
+    gap: 1.5rem;
     align-items: start;
 }
 
-.game-media {
-    grid-area: media;
-}
-
-.game-side {
-    grid-area: side;
-}
-
-.game-main {
-    grid-area: main;
-}
-
-@media (min-width: 52.01rem) and (min-height: 50rem) {
-    .game-side {
-        position: sticky;
-        top: 1.5rem;
-    }
+.game-col {
+    display: flex;
+    flex-direction: column;
+    gap: 1.75rem;
+    min-width: 0;
 }
 
 .gallery-main {
@@ -340,22 +327,23 @@
 }
 
 .game-side h1 {
-    margin: 0 0 0.4rem;
-    font-size: clamp(1.9rem, 3.2vw, 2.75rem);
+    margin: 0 0 0.35rem;
+    font-size: clamp(1.75rem, 2.8vw, 2.4rem);
     text-wrap: balance;
 }
 
 .tagline {
-    margin: 0 0 0.9rem;
+    margin: 0 0 0.75rem;
     color: var(--muted);
-    font-size: 1.05rem;
+    font-size: 0.98rem;
+    line-height: 1.45;
 }
 
 .tags {
     display: flex;
     flex-wrap: wrap;
     gap: 0.35rem;
-    margin-bottom: 1.25rem;
+    margin-bottom: 1rem;
 }
 
 .tags span {
@@ -369,14 +357,14 @@
 .downloads {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.4rem;
 }
 
 .dl {
     display: flex;
     align-items: center;
-    gap: 0.8rem;
-    padding: 0.75rem 0.9rem;
+    gap: 0.75rem;
+    padding: 0.55rem 0.8rem;
     border: 1px solid var(--line);
     border-radius: var(--radius);
     background: var(--panel);
@@ -391,8 +379,8 @@
 
 .dl svg {
     display: block;
-    width: 1.35rem;
-    height: 1.35rem;
+    width: 1.2rem;
+    height: 1.2rem;
     fill: currentColor;
 }
 
@@ -408,30 +396,31 @@
     font-size: 0.78rem;
 }
 
+/* Plateforme du visiteur : mise en avant discrète (teinte et liseré bleus), pas un aplat. */
 .dl-primary {
-    border-color: var(--accent);
-    background: var(--accent);
-    color: var(--accent-ink);
+    border-color: rgba(0, 113, 227, 0.45);
+    background: rgba(240, 246, 254, 0.92);
 }
 
 .dl-primary:hover {
-    border-color: #0062c4;
-    background: #0062c4;
+    border-color: var(--accent);
+    background: rgba(230, 240, 253, 0.96);
 }
 
-.dl-primary .dl-text small {
-    color: rgba(255, 255, 255, 0.82);
+.dl-primary .dl-icon,
+.dl-primary .dl-arrow {
+    color: var(--accent);
 }
 
 .free {
-    margin: 0.75rem 0 0;
+    margin: 0.6rem 0 0;
     color: var(--muted);
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     text-align: center;
 }
 
 .facts {
-    margin-top: 1.25rem;
+    margin-top: 1rem;
 }
 
 .prose {
@@ -451,13 +440,17 @@
 
 .prose p,
 .prose li {
-    font-size: 1rem;
-    line-height: 1.6;
+    font-size: 0.97rem;
+    line-height: 1.55;
+}
+
+.prose p {
+    margin: 0 0 0.8rem;
 }
 
 .prose p + h2,
 .prose ul + h2 {
-    margin-top: 1.75rem;
+    margin-top: 1.4rem;
 }
 
 .prose h3 {
@@ -476,13 +469,13 @@
 .facts dl {
     display: grid;
     grid-template-columns: auto 1fr;
-    gap: 0.5rem 1rem;
+    gap: 0.35rem 1rem;
     margin: 0;
-    padding: 1rem 1.1rem;
+    padding: 0.8rem 1rem;
     border: 1px solid var(--line);
     border-radius: var(--radius);
     background: var(--panel);
-    font-size: 0.9rem;
+    font-size: 0.87rem;
 }
 
 .facts dt {
@@ -495,8 +488,31 @@
 
 .install,
 .versions {
-    margin-top: 2.5rem;
+    margin-top: 1.75rem;
     max-width: 48rem;
+}
+
+.game-extra {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.game-extra > * {
+    margin-top: 0;
+}
+
+.controls ul {
+    margin: 0;
+    padding-left: 1.1rem;
+}
+
+.controls li {
+    font-size: 0.9rem;
+}
+
+.controls li + li {
+    margin-top: 0.25rem;
 }
 
 .install details {
@@ -908,9 +924,9 @@
 }
 
 .improve {
-    margin-top: 2.5rem;
+    margin-top: 1.75rem;
     max-width: 48rem;
-    padding: 1.1rem 1.25rem 1.25rem;
+    padding: 0.9rem 1rem 1rem;
     border: 1px solid var(--line);
     border-radius: var(--radius);
     background: var(--panel);
@@ -922,9 +938,9 @@
 }
 
 .improve p {
-    margin: 0 0 0.9rem;
+    margin: 0 0 0.75rem;
     color: #424245;
-    font-size: 0.95rem;
+    font-size: 0.88rem;
 }
 
 .improve .improve-stats {
@@ -936,6 +952,13 @@
     display: flex;
     flex-wrap: wrap;
     gap: 0.5rem;
+}
+
+/* Dans la colonne de droite, les deux boutons prennent toute la largeur. */
+.game-extra .improve-actions .btn {
+    flex: 1 1 100%;
+    justify-content: center;
+    text-align: center;
 }
 
 .ver-requests {
@@ -1287,13 +1310,19 @@
 
 @media (max-width: 52rem) {
     .game {
-        grid-template-columns: minmax(0, 1fr);
-        grid-template-areas:
-            "media"
-            "side"
-            "main";
+        display: flex;
+        flex-direction: column;
         gap: 1.5rem;
     }
+
+    .game-col {
+        display: contents;
+    }
+
+    .game-media { order: 1; }
+    .game-side { order: 2; }
+    .game-main { order: 3; }
+    .game-extra { order: 4; }
 
     .fb-steps {
         grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -306,9 +306,24 @@ function gamePage(g) {
     const body = `    <div class="page">
         <nav class="crumbs"><a href="/">Jeremy N. Martin</a><span>/</span><a href="/jeux/">Jeux</a></nav>
         <article class="game">
+            <div class="game-col">
             <div class="game-media">
             ${gallery}
             </div>
+            <div class="game-main">
+            <section class="prose">
+                <h2>À propos</h2>
+                ${md(g.summary ?? g.tagline ?? '')}
+            </section>
+            <section class="install">
+                <h2>Installer</h2>
+                <p class="install-why">${INSTALL_WHY}${scanned ? ' Chaque fichier est aussi analysé par VirusTotal (lien sous les empreintes).' : ''}</p>
+                ${g.platforms.map((p) => `<details${p === g.platforms[0] ? ' open' : ''} data-platform="${p}"><summary>${ICONS[p]}${PLATFORMS[p].label}</summary>${INSTALL[p](g)}</details>`).join('\n                ')}
+                <details><summary>Empreintes SHA-256${scanned ? ' et analyses' : ''} (v${esc(v.version)})</summary><ul class="sums">${checksums}</ul></details>
+            </section>
+            </div>
+            </div>
+            <div class="game-col">
             <aside class="game-side">
                 <h1>${esc(g.title)}</h1>
                 ${g.tagline ? `<p class="tagline">${esc(g.tagline)}</p>` : ''}
@@ -321,18 +336,11 @@ function gamePage(g) {
                     <dl>${facts.map(([k, val]) => `<dt>${k}</dt><dd>${val}</dd>`).join('')}</dl>
                 </div>
             </aside>
-            <div class="game-main">
-            <section class="prose">
-                <h2>À propos</h2>
-                ${md(g.summary ?? g.tagline ?? '')}
-                ${g.controls ? `<h2>Comment jouer</h2>${md(g.controls)}` : ''}
-            </section>
-            <section class="install">
-                <h2>Installer</h2>
-                <p class="install-why">${INSTALL_WHY}${scanned ? ' Chaque fichier est aussi analysé par VirusTotal (lien sous les empreintes).' : ''}</p>
-                ${g.platforms.map((p) => `<details${p === g.platforms[0] ? ' open' : ''} data-platform="${p}"><summary>${ICONS[p]}${PLATFORMS[p].label}</summary>${INSTALL[p](g)}</details>`).join('\n                ')}
-                <details><summary>Empreintes SHA-256${scanned ? ' et analyses' : ''} (v${esc(v.version)})</summary><ul class="sums">${checksums}</ul></details>
-            </section>
+            <div class="game-extra">
+            ${g.controls ? `<section class="prose controls">
+                <h2>Comment jouer</h2>
+                ${md(g.controls)}
+            </section>` : ''}
             ${FEEDBACK_API ? `<section class="improve" data-improve data-api="${esc(FEEDBACK_API)}" data-game="${g.slug}">
                 <h2>Améliorer ${esc(g.title)}</h2>
                 <p>Un bug, une idée, un détail qui gêne ? Chaque demande est lue, et tu peux suivre ce qu’elle devient.</p>
@@ -348,6 +356,7 @@ function gamePage(g) {
                 ${versions}
                 </ul>
             </section>
+            </div>
             </div>
         </article>
     </div>

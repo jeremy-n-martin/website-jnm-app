@@ -1,5 +1,6 @@
 // Icônes peintes de l'accueil : chaque icône compte exactement 128 touches de peinture, posées une à une
-// à la main sur une grille de 20 × 20 (calque « fond » en 10 × 10, calque « motif » en 20 × 20).
+// à la main sur une grille de 20 × 20 (calque « fond » en 10 × 10 ; motif dessiné case par case en
+// 20 × 20, ou en traits relevés sur un logo, avec le nombre de touches de chaque trait).
 // Rendu : fond dégradé, touches à relief (ombre, corps, éclat, traces de poils), grain de toile,
 // vernis ancien, reflet moderne. Survol : coup de pinceau qui repasse sur l'icône + mouvement propre.
 // Tout se règle par icône dans ICONS (couleurs, rôles des touches, pinceau, mouvement).
@@ -275,63 +276,64 @@
             lines: 'before',
         },
 
+        // Bestiaire : le dragon dans son hexagone, relevé sur le logo (repère 64 × 64).
+        // Ici le motif est fait de traits : chaque trait reçoit à la main son nombre de touches,
+        // réparties le long du tracé et couchées dans son sens, comme la spirale de l'emblème.
         fantasiafauna: {
-            tile: '#d29a2e',
-            brush: 0.35,
-            touch: 0.78,
+            tile: '#211c26',
+            brush: -0.4,
+            touch: 0.82,
             roles: {
-                w: { color: '#3b2414' },
-                e: { color: '#9e2f22' },
-                b: { color: '#1f130b' },
-                a: { color: '#2c1a0e', size: 0.85 },
+                h: { color: '#a8873f', size: 0.8, stretch: 1.5 },
+                d: { color: '#e2b250' },
+                c: { color: '#e9bd5e' },
+                y: { color: '#e0573a', size: 0.9, round: true },
+                s: { color: '#c79a44' },
+                w: { color: '#d9a548' },
             },
-            motif: [
-                '....................',
-                '....................',
-                '....................',
-                '....................',
-                '.....a........a.....',
-                '......a......a......',
-                '..ee...w.bb.w...ee..',
-                '..eeww...bb...wwee..',
-                '..ee.www.bb.www.ee..',
-                '...ewwww.bb.wwwwe...',
-                '....wwwwwbbwwwww....',
-                '.....wwwwbbwwww.....',
-                '.....wwwwbbwwww.....',
-                '....wwww.bb.wwww....',
-                '....wwww.bb.wwww....',
-                '.....ww..bb..ww.....',
-                '....................',
-                '....................',
-                '....................',
-                '....................',
+            frame: (x, y) => [3 + (x - 7) * 0.28, 1.9 + (y - 3) * 0.28],
+            strokes: [
+                // hexagone (36 touches)
+                { role: 'h', n: 36, closed: true, path: [[32, 3], [57, 17], [57, 47], [32, 61], [7, 47], [7, 17]] },
+                // corps, cou et tête (40)
+                { role: 'd', n: 40, path: [[18, 43], [20, 29], [28, 20], [26, 11], [37, 20], [47, 22], [42, 29], [32, 31], [38, 37], [34, 47], [19, 47], [14, 41], [23, 42], [27, 35]] },
+                // corne (6)
+                { role: 'c', n: 6, path: [[32, 20], [35, 11], [40, 21]] },
+                // œil (2)
+                { role: 'y', n: 2, path: [[38, 25], [41, 25]] },
+                // sol (7)
+                { role: 's', n: 7, path: [[18, 51], [46, 51]] },
+                // aile (7)
+                { role: 'w', n: 7, path: [[43, 34], [50, 31], [47, 39], [41, 43]] },
             ],
             fond: [
-                '~...~...~.',
-                '..~...~...',
-                '~...~...~.',
-                '..~...~...',
-                '~...~...~.',
-                '..~...~...',
-                '~...~...~.',
-                '..~...~...',
-                '~...~...~.',
-                '......~...',
+                '~..~..~..~',
+                '.~.....~..',
+                '..~..~..~.',
+                '~..~..~..~',
+                '.~.....~..',
+                '..~..~..~.',
+                '~..~..~..~',
+                '.~.....~..',
+                '..~..~..~.',
+                '~.....~..~',
             ],
-            // Le papillon bat des ailes et flotte, les antennes frémissent.
+            // Le dragon respire et se redresse, l'aile bat, l'œil rougeoie, l'hexagone tourne doucement.
             move(p, k) {
                 if (p.role === '~') return;
-                const f = k.h * (0.5 - 0.5 * Math.cos(k.t * 11));
-                if (p.role === 'w' || p.role === 'e') {
-                    const dx = p.x - 10;
-                    p.x = 10 + dx * (1 - 0.42 * f);
-                    p.y -= f * 0.5 * Math.abs(dx) / 8;
-                    p.wid *= 1 - 0.2 * f;
-                } else if (p.role === 'a') {
-                    p.x += Math.sin(k.t * 9 + p.gy) * 0.3 * k.h;
+                if (p.role === 'h') {
+                    rotateAround(p, Math.sin(k.t * 1.4) * 0.12 * k.h, 10, 10);
+                    p.light += 0.25 * k.h;
+                    return;
                 }
-                p.y -= Math.sin(k.t * 3.2) * 0.6 * k.h;
+                if (p.role === 's') return;
+                const breath = Math.sin(k.t * 3.4);
+                p.y -= (0.3 + 0.3 * breath) * k.h;
+                if (p.role === 'w') {
+                    const [ox, oy] = this.frame(43, 34);
+                    rotateAround(p, -Math.max(0, Math.sin(k.t * 7)) * 0.55 * k.h, ox, oy);
+                }
+                if (p.role === 'y') p.light += 0.5 * k.h * (0.6 + 0.4 * breath);
             },
         },
     };
@@ -368,7 +370,7 @@
             });
         }));
         // Calque du motif : une touche par lettre, avec son rôle.
-        def.motif.forEach((row, r) => [...row].forEach((ch, col) => {
+        (def.motif ?? []).forEach((row, r) => [...row].forEach((ch, col) => {
             if (ch === '.') return;
             const role = def.roles[ch];
             if (!role) return;
@@ -392,6 +394,39 @@
                 alpha: 0.96,
             });
         }));
+        // Calque du motif en traits : n touches réparties le long de chaque tracé, dans son sens.
+        for (const st of def.strokes ?? []) {
+            const role = def.roles[st.role];
+            const path = st.path.map(([x, y]) => def.frame(x, y));
+            if (st.closed) path.push(path[0]);
+            const seg = [];
+            let total = 0;
+            for (let s = 1; s < path.length; s++) {
+                const l = Math.hypot(path[s][0] - path[s - 1][0], path[s][1] - path[s - 1][1]);
+                seg.push(l);
+                total += l;
+            }
+            for (let j = 0; j < st.n; j++) {
+                let d = (st.closed ? j / st.n : j / Math.max(1, st.n - 1)) * total;
+                let s = 0;
+                while (s < seg.length - 1 && d > seg[s]) { d -= seg[s]; s++; }
+                const [ax, ay] = path[s], [bx, by] = path[s + 1];
+                const u = seg[s] ? d / seg[s] : 0;
+                const rnd = rand(seed * 7919 + pts.length * 104729 + 13);
+                const size = (role.size ?? 1) * (def.touch ?? 1);
+                const wid = (1.05 + rnd() * 0.15) * size;
+                pts.push({
+                    role: st.role,
+                    gx: ax + (bx - ax) * u + (rnd() - 0.5) * 0.15,
+                    gy: ay + (by - ay) * u + (rnd() - 0.5) * 0.15,
+                    len: role.round ? wid * 1.05 : (1.75 + rnd() * 0.3) * size * (role.stretch ?? 1),
+                    wid,
+                    ang: Math.atan2(by - ay, bx - ax) + (rnd() - 0.5) * 0.3,
+                    color: tone(hex(role.color), (rnd() - 0.5) * 0.14),
+                    alpha: 0.96,
+                });
+            }
+        }
         if (pts.length !== N) console.warn(`paint-icons: « ${name} » a ${pts.length} touches au lieu de ${N}.`);
         pts.forEach((p, i) => { p.i = i; p.diag = (p.gx + p.gy) / (2 * GRID); });
         return { def, tile, pts };
