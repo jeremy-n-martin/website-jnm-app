@@ -306,8 +306,9 @@ function gamePage(g) {
     const body = `    <div class="page">
         <nav class="crumbs"><a href="/">Jeremy N. Martin</a><span>/</span><a href="/jeux/">Jeux</a></nav>
         <article class="game">
-            <div class="game-top">
+            <div class="game-media">
             ${gallery}
+            </div>
             <aside class="game-side">
                 <h1>${esc(g.title)}</h1>
                 ${g.tagline ? `<p class="tagline">${esc(g.tagline)}</p>` : ''}
@@ -316,18 +317,16 @@ function gamePage(g) {
                 ${g.platforms.map((p, i) => downloadRow(p, v.files[p], i === 0)).join('\n                ')}
                 </div>
                 <p class="free">Gratuit · sans pub · sans compte</p>
-            </aside>
-            </div>
-            <div class="game-body">
-                <section class="prose">
-                    <h2>À propos</h2>
-                    ${md(g.summary ?? g.tagline ?? '')}
-                    ${g.controls ? `<h2>Comment jouer</h2>${md(g.controls)}` : ''}
-                </section>
-                <aside class="facts">
+                <div class="facts">
                     <dl>${facts.map(([k, val]) => `<dt>${k}</dt><dd>${val}</dd>`).join('')}</dl>
-                </aside>
-            </div>
+                </div>
+            </aside>
+            <div class="game-main">
+            <section class="prose">
+                <h2>À propos</h2>
+                ${md(g.summary ?? g.tagline ?? '')}
+                ${g.controls ? `<h2>Comment jouer</h2>${md(g.controls)}` : ''}
+            </section>
             <section class="install">
                 <h2>Installer</h2>
                 <p class="install-why">${INSTALL_WHY}${scanned ? ' Chaque fichier est aussi analysé par VirusTotal (lien sous les empreintes).' : ''}</p>
@@ -349,6 +348,7 @@ function gamePage(g) {
                 ${versions}
                 </ul>
             </section>
+            </div>
         </article>
     </div>
     <dialog class="lightbox" id="lightbox"><img alt=""><button type="button" class="lb-close" aria-label="Fermer">×</button></dialog>`;
