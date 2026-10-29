@@ -1,6 +1,7 @@
 // Emblème jnm.app : 128 pixels pilotés un par un qui se réassemblent en figures 2D et 3D.
 // Spirale → sphère → cube → double hélice → tore → onde → icône « .APP » → spirale.
 // Survol : les pixels s'écartent du curseur. Clic : figure suivante.
+// Mouvement réduit (réglage du système) : même cycle, plus lent, sans traînées ni tourbillon.
 (function () {
     'use strict';
 
@@ -170,7 +171,9 @@
     // ---------- rendu ----------
 
     function frame(now) {
-        const dt = Math.min(0.05, (now - last) / 1000);
+        // Temps réel (plafonné au retour d'un onglet en arrière-plan) : une machine lente saute des images
+        // mais l'animation garde sa vitesse.
+        const dt = Math.min(0.25, Math.max(0, now - last) / 1000) * (reduce ? 0.6 : 1);
         last = now;
         clock += dt;
 
@@ -205,9 +208,9 @@
             const k = easeInOut(clamp((local / MORPH - delay) / (1 - STAGGER)));
             const a = shapeAt(from === null ? phase : from, i, clock);
             const b = shapeAt(phase, i, clock);
-            const burst = 1 + 0.38 * Math.sin(Math.PI * k) * (from === null ? 0 : 1);
+            const burst = 1 + 0.38 * Math.sin(Math.PI * k) * (from === null || reduce ? 0 : 1);
             let p = [(a[0] + (b[0] - a[0]) * k) * burst, (a[1] + (b[1] - a[1]) * k) * burst, a[2] + (b[2] - a[2]) * k];
-            if (k > 0 && k < 1) p = rotZ(p, Math.sin(Math.PI * k) * 0.6);
+            if (!reduce && k > 0 && k < 1) p = rotZ(p, Math.sin(Math.PI * k) * 0.6);
 
             const persp = 2.8 / (2.8 - p[2]);
             let sx = cx + p[0] * unit * persp;
@@ -287,7 +290,7 @@
             ctx.restore();
         }
 
-        if (!reduce) requestAnimationFrame(frame);
+        requestAnimationFrame(frame);
     }
 
     // ---------- interactions ----------
@@ -310,12 +313,7 @@
     window.addEventListener('resize', resize, { passive: true });
     resize();
 
-    if (reduce) {
-        // Mouvement réduit : la spirale, immobile.
-        from = null; phase = 0; clock = 10; phaseStart = clock - MORPH - 0.5;
-        frame(performance.now());
-        return;
-    }
-    from = -1; // entrée : les pixels arrivent de l'extérieur
+    // Entrée : les pixels arrivent de l'extérieur ; en mouvement réduit, la spirale est là d'emblée.
+    if (reduce) { from = null; phase = 0; phaseStart = -MORPH - 0.5; } else from = -1;
     requestAnimationFrame(frame);
 })();

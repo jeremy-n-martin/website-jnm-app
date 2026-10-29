@@ -530,6 +530,26 @@
         for (const pass of ground ? [1] : [0, 1, 2]) for (const p of list) dab(ctx, p, c, pass);
     }
 
+    // Vie propre à chaque touche au survol, en plus du mouvement de l'icône. Une onde parcourt la peinture :
+    // les touches voisines bougent ensemble (le dessin reste lisible), chacune avec un petit écart à elle,
+    // son pinceau qui frémit, et à l'arrivée du curseur un écart du centre qui revient en place.
+    function brushLife(p, k) {
+        const ground = p.role === '~';
+        const wave = p.gx * 0.62 + p.gy * 0.41;
+        const phi = p.i * 2.399963;
+        const amp = (ground ? 1 : 0.55) * k.h;
+        const own = (ground ? 0.4 : 0.2) * k.h;
+        p.x += Math.sin(k.t * 3.1 - wave) * amp + Math.cos(k.t * 4.7 + phi) * own;
+        p.y += Math.cos(k.t * 2.6 - wave * 1.2) * amp * 0.8 + Math.sin(k.t * 5.3 + phi) * own;
+        p.ang += Math.sin(k.t * 4.3 - wave + phi * 0.3) * 0.22 * k.h;
+        if (p.len > p.wid * 1.2) p.len *= 1 + 0.16 * k.h * Math.sin(k.t * 5.1 - wave);
+        p.scale *= 1 + 0.1 * k.h * Math.sin(k.t * 3.7 - wave * 0.8);
+        const dx = p.x - GRID / 2, dy = p.y - GRID / 2, d = Math.hypot(dx, dy) || 1;
+        const burst = 1.5 * k.h * Math.exp(-k.t * 3.8) * Math.min(1, k.t * 10);
+        p.x += (dx / d) * burst;
+        p.y += (dy / d) * burst;
+    }
+
     function render(icon, ctx, S, k) {
         const { def, tile, pts } = icon;
         const c = S / GRID;
@@ -563,7 +583,10 @@
                 p.ang += 0.55 * pulse;
                 p.light += 0.2 * pulse;
             }
-            if (def.move && k.h > 0.001) def.move(p, k);
+            if (k.h > 0.001) {
+                if (def.move) def.move(p, k);
+                brushLife(p, k);
+            }
             return p;
         });
 
@@ -648,8 +671,9 @@
             else { running = false; if (target === 0) k.t = 0; }
         }
 
+        // Mouvement réduit : pas d'entrée animée, mais le survol (voulu par l'utilisateur) reste animé.
         function wake() {
-            if (reduce || running) return;
+            if (running) return;
             running = true;
             last = performance.now();
             requestAnimationFrame(tick);
