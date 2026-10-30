@@ -1,6 +1,7 @@
 {
   "title": "Les Mots Perdus",
   "source": "ortho",
+  "hidden": true,
   "tagline": "Un jeu d'orthophonie : une histoire, des énigmes de logique et les règles d'orthographe, avec les syllabes en couleurs.",
   "summary": "Les Mots Perdus est une aventure pour apprendre l'orthographe en jouant. On traverse quatre mondes, de la **Grande Bibliothèque** à la **Tour du Grignotin**, et chaque niveau mêle un bout d'histoire, une fiche de règle et des énigmes.\n\nLes mots sont découpés selon la **méthode syllabique en couleurs**, pour aider à lire. Les règles abordées vont des syllabes et des lettres muettes jusqu'aux homophones (*a/à*, *et/est*, *son/sont*, *ou/où*) et à l'accord du verbe.\n\nOnze types de mini-jeux s'enchaînent : quiz, phrases à trous, mots à remettre dans l'ordre, tri dans des paniers, intrus, suites logiques, paires, mémoire, mots à écrire lettre par lettre…\n\nEn option, des thèmes Halloween et Noël changent les décors.",
   "controls": "- Souris ou doigt : on touche, on glisse, on relie.\n- Le clavier sert pour les énigmes où il faut écrire un mot.",

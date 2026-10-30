@@ -1,6 +1,7 @@
 {
   "title": "Lettre Express",
   "source": "lettre",
+  "hidden": true,
   "tagline": "Forme des mots avec les charbons et fais rouler le train jusqu’au terminus.",
   "summary": "Sept charbons portent chacun une lettre. Forme des mots avec : chaque mot trouvé part dans la chaudière et fait avancer le train. La pression baisse sans arrêt, alors il faut enchaîner, sinon la locomotive s’arrête avant la gare.\n\nEn **Aventure**, tu traverses douze îles, de la côte à la montagne, avec la lettre du Capitaine Mouette à livrer. Chaque île a son personnage, son vœu à exaucer et ses conditions de route : pluie, express, charge lourde, verglas. Le **Défi du jour** donne la même grille à tout le monde, et le mode **Classique** enchaîne des niveaux de plus en plus durs.\n\n- Combos, turbo, mots dorés cachés et mots bonus : tout mot français valide rapporte, même hors de la grille.\n- Un garage de wagons à acheter et à atteler, qui changent ta façon de jouer.\n- Une vache traverse parfois la voie : siffle à temps.\n- Des succès à débloquer, une sauvegarde automatique.",
   "controls": "- Touche (ou clique) les charbons pour former un mot, puis valide.\n- Au clavier : Entrée valide, Retour arrière efface, Échap met en pause.\n- Plus tu enchaînes vite, plus le train file : 3 étoiles si tu arrives au terminus en forme.",
