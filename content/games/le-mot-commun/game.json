@@ -1,23 +1,51 @@
 {
   "title": "Le Mot Commun",
   "source": "commun",
-  "tagline": "Quatre mots, un seul point commun. Trouve-le !",
-  "summary": "Quatre mots s'affichent : **Roi, Reine, Fou, Tour**. Quel mot les relie ? *Échecs*. Le Mot Commun est un jeu de mots en pixel art où chaque énigme cache un lien, parfois évident, parfois retors.\n\nLe nombre de lettres est indiqué sous les cases. Si tu bloques, un indice révèle une lettre, mais il coûte une étoile. Six mondes de difficulté croissante, de *Premiers pas* à *Maître des mots*, puis un septième monde, secret.\n\n- **Défi du jour** : la même énigme pour tout le monde, avec une série de jours à prolonger.\n- **Mode Domaine** : des énigmes regroupées par thème.\n- Décors animés pour chaque monde, et Lexi pour te donner un coup de pouce.",
-  "controls": "- Tape les lettres au clavier (les accents sont ignorés : é = E) ou sur le clavier à l'écran.\n- 3 étoiles sans indice, 2 avec un indice, 1 avec deux.",
+  "tagline": "Quatre mots, un seul point commun : trouve celui qui les relie.",
+  "summary": "Quatre mots s'affichent : **Roi, Reine, Fou, Tour**. Quel mot les relie ? *Échecs*. Le Mot Commun est un jeu de mots en pixel art : chaque énigme cache un lien, parfois évident, parfois retors. Il y en a 2 200 réparties en huit mondes, de *Premiers pas* à *Le Grand Final*.\n\nTu choisis d'abord ta difficulté (Facile, Moyen ou Difficile), puis tu joues un monde ou un domaine : tu ne vois que des énigmes de ce niveau. Si tu bloques, un indice révèle une lettre, mais il coûte une étoile. Une grille fausse s'efface toute seule au bout d'une seconde, et Lexi le hibou peut te montrer la solution.\n\n- **Profils** : crée un profil par joueur (un par enfant, par exemple) pour garder ses étoiles et ses énigmes résolues. Sans profil, la partie n'est pas enregistrée.\n- **Domaines** : 32 thèmes de fêtes (Halloween, Noël, Carnaval, Diwali, Hanami…), 150 énigmes chacun, avec le décor de la fête.\n- **Défi du jour** : une énigme par jour, avec une série de jours à prolonger.\n- **Confort de lecture** : polices OpenDyslexic, Lexend et Atkinson, et huit styles de musique avec leurs bruitages.",
+  "controls": "- Tape les lettres au clavier (les accents sont ignorés : é = E) ou sur le clavier à l'écran ; Retour arrière efface, Entrée valide.\n- Échap : retour. F11 : plein écran. Sur mobile, tout se joue au toucher.\n- 3 étoiles sans indice, 2 avec un indice, 1 avec deux.",
   "genres": [
     "Mots",
     "Réflexion"
   ],
   "players": "Solo",
   "language": "Français",
-  "status": "Alpha",
+  "status": "Version 1.0",
   "pixelArt": true,
   "media": {
     "cover": "media/shot-01.webp",
     "icon": "media/icon.png",
-    "screenshots": ["media/shot-01.webp", "media/shot-07.webp", "media/shot-03.webp"]
+    "screenshots": [
+      "media/shot-01.webp",
+      "media/shot-02.webp",
+      "media/shot-03.webp"
+    ]
   },
   "versions": [
+    {
+      "version": "1.000",
+      "date": "2026-10-30",
+      "notes": "Choisis ta difficulté puis joue : chaque monde et chaque domaine ne te montrent que des énigmes de ce niveau. Profils pour chaque joueur, 2 200 énigmes en 8 mondes et 4 800 dans 32 domaines de fêtes, polices de lecture, huit styles de musique avec leurs bruitages.\n\nAndroid : nouvelle signature de l’application. Désinstalle l’ancienne version avant d’installer celle-ci (la progression sur le téléphone repart de zéro).",
+      "milestone": true,
+      "available": true,
+      "files": {
+        "windows": {
+          "file": "le-mot-commun/1.000/le-mot-commun-v1.000-windows-x64.exe",
+          "size": 147050400,
+          "sha256": "8992df952dff8ba2f472f8a3d6df3d3a857c598fedc1c7632de1293b78f7c10f"
+        },
+        "android": {
+          "file": "le-mot-commun/1.000/le-mot-commun-v1.000-android.apk",
+          "size": 85739765,
+          "sha256": "940de86188f8f88ec9ee0e106d0ce3ab935405988f5428b14a32a636196f8858"
+        },
+        "macos": {
+          "file": "le-mot-commun/1.000/le-mot-commun-v1.000-macos.zip",
+          "size": 93776320,
+          "sha256": "683cb83f4a112dce2dea85d95c959dec8e07281e1c5340d833d804a74883df9f"
+        }
+      }
+    },
     {
       "version": "0.006",
       "date": "2026-10-28",
@@ -42,5 +70,6 @@
         }
       }
     }
-  ]
+  ],
+  "androidCert": "dd0248f25ee8401c9cd288a3ad7a5e436699d71cce5a13e15cc0e7b8c9b0da81"
 }
