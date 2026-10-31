@@ -23,6 +23,30 @@
   },
   "versions": [
     {
+      "version": "1.001",
+      "date": "2026-10-31",
+      "notes": "Sur mobile, un toucher sur une touche du clavier n'écrit plus deux lettres.",
+      "milestone": false,
+      "available": true,
+      "files": {
+        "windows": {
+          "file": "le-mot-commun/1.001/le-mot-commun-v1.001-windows-x64.exe",
+          "size": 147050784,
+          "sha256": "baf1964e8a920a8534e3d466abf3df6e4d4155bb439ebed493d1765e38b575cd"
+        },
+        "android": {
+          "file": "le-mot-commun/1.001/le-mot-commun-v1.001-android.apk",
+          "size": 85739765,
+          "sha256": "19b7906af58fc79d52b7fb35e5f1aa3a895a6c21c15074410ee366e88b67c575"
+        },
+        "macos": {
+          "file": "le-mot-commun/1.001/le-mot-commun-v1.001-macos.zip",
+          "size": 93776734,
+          "sha256": "c0c04552d037151b0b089a98d18924ba68bac625acadd1106d84652e68bf7084"
+        }
+      }
+    },
+    {
       "version": "1.000",
       "date": "2026-10-30",
       "notes": "Choisis ta difficulté puis joue : chaque monde et chaque domaine ne te montrent que des énigmes de ce niveau. Profils pour chaque joueur, 2 200 énigmes en 8 mondes et 4 800 dans 32 domaines de fêtes, polices de lecture, huit styles de musique avec leurs bruitages.\n\nAndroid : nouvelle signature de l’application. Désinstalle l’ancienne version avant d’installer celle-ci (la progression sur le téléphone repart de zéro).",
