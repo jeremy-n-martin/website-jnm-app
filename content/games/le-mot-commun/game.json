@@ -23,6 +23,30 @@
   },
   "versions": [
     {
+      "version": "1.002",
+      "date": "2026-10-31",
+      "notes": "Énigmes entièrement revues : indices en un seul mot, mondes et difficultés recalibrés, vrais mots soutenus en Difficile, domaines recentrés sur leur fête (100 énigmes chacun). Nouveau : séances préparées et listes de mots personnelles, aide détaillée en 8 pages, quatre décors automatiques et calendrier des thèmes.",
+      "milestone": false,
+      "available": true,
+      "files": {
+        "windows": {
+          "file": "le-mot-commun/1.002/le-mot-commun-v1.002-windows-x64.exe",
+          "size": 146710560,
+          "sha256": "c10038cbec2c03ce5c4baa7660b8351cb89d3ecb62861845c7b4981a8cf7eef9"
+        },
+        "android": {
+          "file": "le-mot-commun/1.002/le-mot-commun-v1.002-android.apk",
+          "size": 85711093,
+          "sha256": "c813e6cf34f37b37b7e016c9a92fdfb8312e6242fd41c75480b950e3d3b58ede"
+        },
+        "macos": {
+          "file": "le-mot-commun/1.002/le-mot-commun-v1.002-macos.zip",
+          "size": 93750603,
+          "sha256": "b2649ef9a1b7a4273c9d057b7282c3cd1fe95bb6c463ce6849cccf329bf3250c"
+        }
+      }
+    },
+    {
       "version": "1.001",
       "date": "2026-10-31",
       "notes": "Sur mobile, un toucher sur une touche du clavier n'écrit plus deux lettres.",
@@ -75,7 +99,7 @@
       "date": "2026-10-28",
       "notes": "Mode Domaine, options et décors.",
       "milestone": false,
-      "available": true,
+      "available": false,
       "files": {
         "windows": {
           "file": "le-mot-commun/0.006/le-mot-commun-v0.006-windows-x64.exe",
