@@ -64,6 +64,47 @@
         }
     }
 
+    // ---------- fiche : historique des versions replié ----------
+
+    const versions = document.getElementById('versions');
+    const verToggle = versions?.querySelector('[data-ver-toggle]');
+    if (verToggle) {
+        const game = versions.closest('.game');
+        const list = versions.querySelector(':scope > ul');
+        const entries = Array.from(list.children);
+        let open = false;
+
+        function fold() {
+            game.classList.toggle('is-folded', !open);
+            versions.classList.remove('is-clipped');
+            verToggle.hidden = true;
+            const clipped = !open && list.scrollHeight > list.clientHeight + 1;
+            versions.classList.toggle('is-clipped', clipped);
+            verToggle.hidden = !open && !clipped;
+            verToggle.textContent = open ? 'Réduire' : `Voir toutes les versions (${entries.length})`;
+            verToggle.setAttribute('aria-expanded', String(open));
+        }
+
+        function setOpen(value) {
+            open = value;
+            fold();
+            if (!open) versions.scrollIntoView({ block: 'nearest' });
+        }
+
+        verToggle.addEventListener('click', () => setOpen(!open));
+        // Un lien caché par le repli qui reçoit le focus au clavier : on déplie pour le montrer.
+        list.addEventListener('focusin', (e) => {
+            if (open) return;
+            const hidden = list.scrollTop > 0 || e.target.getBoundingClientRect().bottom > list.getBoundingClientRect().bottom;
+            list.scrollTop = 0;
+            if (hidden) setOpen(true);
+        });
+
+        const watch = new ResizeObserver(() => requestAnimationFrame(fold));
+        [game.querySelector('.game-main'), list, ...entries].forEach((el) => watch.observe(el));
+        fold();
+    }
+
     // ---------- fiche : carrousel des captures ----------
 
     const carousel = document.querySelector('[data-carousel]');

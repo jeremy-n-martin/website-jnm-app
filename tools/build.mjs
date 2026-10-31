@@ -355,6 +355,7 @@ function gamePage(g) {
                 <ul>
                 ${versions}
                 </ul>
+                <button type="button" class="ver-toggle" data-ver-toggle hidden></button>
             </section>
             </div>
             </div>
