@@ -2,7 +2,7 @@
   "title": "Le Mot Commun",
   "source": "commun",
   "tagline": "Quatre mots, un seul point commun : trouve celui qui les relie.",
-  "summary": "Quatre mots s'affichent : **Roi, Reine, Fou, Tour**. Quel mot les relie ? *Échecs*. Le Mot Commun est un jeu de mots en pixel art : chaque énigme cache un lien, parfois évident, parfois retors. Il y en a 2 200 réparties en huit mondes, du *Quotidien* au *Grand Mélange*.\n\nTu choisis d'abord ta difficulté (Facile, Moyen ou Difficile), puis tu joues un monde ou un domaine : tu ne vois que des énigmes de ce niveau. Si tu bloques, un indice révèle une lettre, mais il coûte une étoile. Une grille fausse s'efface toute seule au bout d'une seconde, et Lexi le hibou peut te montrer la solution.\n\n- **Profils** : crée un profil par joueur (un par enfant, par exemple) pour garder ses étoiles et ses énigmes résolues. Sans profil, la partie n'est pas enregistrée.\n- **Domaines** : 32 thèmes de fêtes (Halloween, Noël, Carnaval, Diwali, Hanami…), 100 énigmes chacun, avec le décor de la fête.\n- **Séances et listes** : pour une orthophoniste ou un parent, choisis à l'avance les énigmes d'une séance, ou crée tes propres listes de mots.\n- **Défi du jour** : une énigme par jour, avec une série de jours à prolonger.\n- **Confort de lecture** : polices OpenDyslexic, Lexend et Atkinson, et huit styles de musique avec leurs bruitages.",
+  "summary": "Quatre mots s'affichent : **Roi, Reine, Fou, Tour**. Quel mot les relie ? *Échecs*. Le Mot Commun est un jeu de mots en pixel art : chaque énigme cache un lien, parfois évident, parfois retors. Il y en a 2 200 réparties en huit mondes, du *Quotidien* au *Grand Mélange*.\n\nTu choisis d'abord ta difficulté (Facile, Moyen ou Difficile), puis tu joues un monde ou un domaine : tu ne vois que des énigmes de ce niveau. Si tu bloques, un indice révèle une lettre, mais il coûte une étoile. Une grille fausse s'efface toute seule au bout d'une seconde, et Lexi le hibou peut te montrer la solution.\n\n- **Profils** : crée un profil par joueur (un par enfant, par exemple) pour garder ses étoiles et ses énigmes résolues. Sans profil, la partie n'est pas enregistrée.\n- **Domaines** : 32 thèmes de fêtes (Halloween, Noël, Carnaval, Diwali, Hanami…), 100 énigmes chacun, avec le décor coloré de la fête, de jour ou de nuit.\n- **Séances et listes** : pour une orthophoniste ou un parent, choisis à l'avance les énigmes d'une séance, ou crée tes propres listes de mots.\n- **Défi du jour** : une énigme par jour, avec une série de jours à prolonger.\n- **Confort de lecture** : polices OpenDyslexic, Lexend et Atkinson, et huit styles de musique avec leurs bruitages.",
   "controls": "- Tape les lettres au clavier (les accents sont ignorés : é = E) ou sur le clavier à l'écran ; Retour arrière efface, Entrée valide.\n- Échap : retour. F11 : plein écran. Sur mobile, tout se joue au toucher.\n- 3 étoiles sans indice, 2 avec un indice, 1 avec deux.",
   "genres": [
     "Mots",
@@ -22,6 +22,30 @@
     ]
   },
   "versions": [
+    {
+      "version": "1.003",
+      "date": "2026-11-07",
+      "notes": "Décors bien plus colorés : ciel bleu de jour pour 16 fêtes (Carnaval, Pâques, Holi, Hanami, Fête foraine…), une couleur propre à chaque fête de nuit, mondes plus lumineux. Petits textes plus lisibles sur un ciel clair.",
+      "milestone": false,
+      "available": true,
+      "files": {
+        "windows": {
+          "file": "le-mot-commun/1.003/le-mot-commun-v1.003-windows-x64.exe",
+          "size": 146714480,
+          "sha256": "c10e81129886903a94ab28e21e5f66009386d5083d5c7fa44612a7ed44debfdf"
+        },
+        "android": {
+          "file": "le-mot-commun/1.003/le-mot-commun-v1.003-android.apk",
+          "size": 85715264,
+          "sha256": "5d1bb5ba7fc2586162947551e256c4ed09517bc078d59f1b9278a8f4c3171208"
+        },
+        "macos": {
+          "file": "le-mot-commun/1.003/le-mot-commun-v1.003-macos.zip",
+          "size": 93754674,
+          "sha256": "84846f9325f4341822926eac6912a7950d8019698228e58c65bd6134c1fd186f"
+        }
+      }
+    },
     {
       "version": "1.002",
       "date": "2026-10-31",
