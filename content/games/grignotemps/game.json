@@ -1,0 +1,51 @@
+{
+  "title": "Grignotemps",
+  "source": "timing",
+  "tagline": "Un minuteur visuel pour les enfants : le temps qui reste se fait grignoter, fondre ou pousser sous leurs yeux.",
+  "summary": "Les enfants ne lisent pas encore l'heure, mais ils voient très bien un fromage qui rétrécit. Grignotemps est un minuteur visuel en pixel art : tu choisis une durée, et le temps qui reste se fait grignoter par une souris, brouter par un mouton ou dévorer par un dino.\n\n22 thèmes, rangés par famille : ça se grignote, ça grandit (une fleur, un enfant près de sa toise), ça fond (bougie, glace, bonhomme de neige), ça avance (fusée, petit train, escargot), ça s'écoule (sablier, bain du petit canard), ou un par minute (ballons, pommes, bougies d'anniversaire). Il y a aussi un disque coloré classique. À la fin, une petite fête avec confettis et fanfare 8-bit, ou une berceuse pour les fins calmes.\n\nLa même scène peut se dessiner en 12 styles : pixel art, pâte à modeler, peinture, crayons de couleur, tableau à craie, perles à repasser, point de croix, tricot, vieille télé…\n\n- **Routine** : enchaîne jusqu'à 8 étapes (ranger, se laver les mains, histoire…), chacune avec son nom, sa durée et son thème.\n- **Trois dispositions** : classique, libre avec les thèmes à portée de main, ou épurée pour la classe.\n- Un signal doux quand il reste une minute, un mode nuit et le plein écran.",
+  "controls": "- Touche l'image ou appuie sur **Espace** : démarrer ou mettre en pause.\n- Fais glisser autour de l'horloge pour régler la durée, comme un vrai minuteur. Molette ou **Haut** / **Bas** : une minute de plus ou de moins.\n- **R** : recommencer · **T** : thème suivant · **S** : style suivant · **L** : disposition suivante · **N** : étape suivante de la routine.\n- L'engrenage ouvre les réglages. **F11** : plein écran.",
+  "genres": [
+    "Éducatif",
+    "Enfants"
+  ],
+  "players": "Solo",
+  "language": "Français",
+  "status": "Alpha",
+  "pixelArt": true,
+  "media": {
+    "cover": "media/shot-01.webp",
+    "icon": "media/icon.png",
+    "screenshots": [
+      "media/shot-01.webp",
+      "media/shot-02.webp",
+      "media/shot-03.webp"
+    ]
+  },
+  "versions": [
+    {
+      "version": "0.100",
+      "date": "2026-11-13",
+      "notes": "Première version : 22 thèmes, 12 styles de dessin, routines et trois dispositions.",
+      "milestone": false,
+      "available": true,
+      "files": {
+        "windows": {
+          "file": "grignotemps/0.100/grignotemps-v0.100-windows-x64.exe",
+          "size": 110020280,
+          "sha256": "cbf17f10a765cc7708f95fe7f8a3a734e2944296fe4b0e9e1c298ba22c449f58"
+        },
+        "android": {
+          "file": "grignotemps/0.100/grignotemps-v0.100-android.apk",
+          "size": 53773618,
+          "sha256": "9e115057569f50843c4b2e23ac6c64ead6b383e913367bc2fb1e413d55d1bc34"
+        },
+        "macos": {
+          "file": "grignotemps/0.100/grignotemps-v0.100-macos.zip",
+          "size": 63095405,
+          "sha256": "89a9778525f8df4a743c3a431aeb07712ede1066e94ecb1360ebd37e584d42bb"
+        }
+      }
+    }
+  ],
+  "androidCert": "a842f389cb125b2fcbcc18accedf5eafa410e7859bd8f844452ab5815c981fe4"
+}
