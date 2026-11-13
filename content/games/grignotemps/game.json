@@ -23,6 +23,30 @@
   },
   "versions": [
     {
+      "version": "0.101",
+      "date": "2026-11-13",
+      "notes": "Le numéro de version ne touche plus le temps affiché en disposition Épuré.",
+      "milestone": false,
+      "available": true,
+      "files": {
+        "windows": {
+          "file": "grignotemps/0.101/grignotemps-v0.101-windows-x64.exe",
+          "size": 110020456,
+          "sha256": "f79c63a4e33719c88992bf3b5c5dc54302e278e8f1b4da39e4801c9195666f00"
+        },
+        "android": {
+          "file": "grignotemps/0.101/grignotemps-v0.101-android.apk",
+          "size": 53773618,
+          "sha256": "df305d7dda9633c2d3530fba19251aa21ef421d41e12e3c39de6a58b2efd232f"
+        },
+        "macos": {
+          "file": "grignotemps/0.101/grignotemps-v0.101-macos.zip",
+          "size": 63095693,
+          "sha256": "8b12848f2c4182a3d5b28e7d64911569caaa552fb40f1b39c509420c300fec58"
+        }
+      }
+    },
+    {
       "version": "0.100",
       "date": "2026-11-13",
       "notes": "Première version : 22 thèmes, 12 styles de dessin, routines et trois dispositions.",
