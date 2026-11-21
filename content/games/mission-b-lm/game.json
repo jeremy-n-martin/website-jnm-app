@@ -1,0 +1,51 @@
+{
+  "title": "Mission B-LM",
+  "source": "orthoblm",
+  "tagline": "Révise le bilan logico-mathématique : fiches, quiz, ateliers avec le matériel du test et passations simulées.",
+  "summary": "Mission B-LM sert à réviser le **bilan logico-mathématique** (B-LM cycle II) en jouant. Le contenu suit un cours de formation : consignes de passation, tranches d'âge en mois, productions possibles des enfants, cotation et lecture du profil.\n\nTu avances sur un parcours de 12 étapes, des fondements et de l'anamnèse jusqu'au diagnostic et à la rééducation, en passant par la classification, la combinatoire, la sériation, l'inclusion, les conservations, le dénombrement, la numération, les transcodages et les opérations. Chaque étape a sa fiche de cours, ses cartes mémoire et trois quiz. Chaque réponse est expliquée, avec sa source.\n\nLes ateliers te font manipuler le matériel : fabriquer les 12 jetons de l'usine, ranger l'escalier de baguettes, planter 10 fleurs dont 6 tulipes dont 2 rouges, distribuer les carottes aux lapins, faire des paquets de dix, jouer 6 − 2 avec des jetons ou repérer les codes de dénombrement (EI, ER, ECOM…) en regardant un enfant compter.\n\n- **Simulateur de passation** : tu es l'examinateur face à un enfant fictif ; choisis la consigne, la relance prévue par le livret, puis la cotation.\n- **Cas cliniques** : Maxime, Sophie, Nicolas, Raphaël et Clara, étape par étape, et un profil logique à colorier en vert, orange ou rouge.\n- **Pour réviser souvent** : défi du jour, marathon à 3 vies, examen blanc noté sur 20, erreurs qui reviennent au bon moment, recherche dans les fiches.\n- **Confort de lecture** : polices Lexend, Atkinson Hyperlegible et OpenDyslexic, trois tailles de texte.",
+  "controls": "- Souris ou doigt : tu touches, tu glisses les étiquettes dans les boîtes, tu retournes les cartes.\n- QCM : touches 1 à 4 ; vrai/faux : V ou F ; Entrée ou Espace pour continuer.\n- Cartes mémoire : Espace pour retourner, → si tu savais, ← à revoir.\n- Échap : retour. F11 : plein écran.",
+  "genres": [
+    "Éducatif",
+    "Logique"
+  ],
+  "players": "Solo",
+  "language": "Français",
+  "status": "Version 1.0",
+  "pixelArt": false,
+  "media": {
+    "cover": "media/shot-01.webp",
+    "icon": "media/icon.png",
+    "screenshots": [
+      "media/shot-01.webp",
+      "media/shot-02.webp",
+      "media/shot-03.webp"
+    ]
+  },
+  "versions": [
+    {
+      "version": "1.000",
+      "date": "2026-11-21",
+      "notes": "Première version : 12 étapes pour réviser le B-LM, 282 questions expliquées et sourcées, 33 ateliers avec le matériel du test, 10 passations simulées où tu joues l'examinateur, et 5 cas cliniques.",
+      "milestone": true,
+      "available": true,
+      "files": {
+        "windows": {
+          "file": "mission-b-lm/1.000/mission-b-lm-v1.000-windows-x64.exe",
+          "size": 114511880,
+          "sha256": "360d081b40e79e8f09809cf8a4b23d978576e73e0c3a73eb4c1e86c6790411b3"
+        },
+        "android": {
+          "file": "mission-b-lm/1.000/mission-b-lm-v1.000-android.apk",
+          "size": 57516224,
+          "sha256": "136e520200ecd90d3e1d96adc2e0b04d2d653b1a7255ab78f0ccb0fc5eb22c26"
+        },
+        "macos": {
+          "file": "mission-b-lm/1.000/mission-b-lm-v1.000-macos.zip",
+          "size": 65871794,
+          "sha256": "7e896249028d093470d2c45cfe670785c9fe39777f82379e7440a5e317660555"
+        }
+      }
+    }
+  ],
+  "androidCert": "92a630ae0396110fd5be46d2312c4ac1e9b3754056e3136ce1d5ef9c89968fdf"
+}
