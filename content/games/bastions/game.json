@@ -1,0 +1,51 @@
+{
+  "title": "Bastions",
+  "source": "chateaux",
+  "tagline": "Bâtis ton château sur ta montagne et abats celui d'en face, une carte par tour.",
+  "summary": "Chaque tour, tu joues une seule carte de ta main, ou tu la défausses contre 5 or. Tes cartes bâtissent des salles, les peuplent ou lancent des sorts ; puis toutes tes salles agissent : les archers tirent, la catapulte lance ses boulets, la caserne charge, les greniers rapportent de l'or. Tu gagnes en abattant le trône ennemi, en réduisant son château à deux salles pour que son roi s'enfuie, ou en bâtissant le tien jusqu'à **20 cases**.\n\nTes habitants se rangent en quatre classes : les gueux attaquent, les bourgeois font rentrer l'or, les chevaliers défendent, les nobles lancent la magie. La place compte : archers en hauteur, caserne au rez-de-chaussée, greniers à l'arrière, et deux salles voisines s'allient parfois. Un **triangle** récompense la bonne riposte : la protection bat l'attaque, l'attaque bat la construction, la construction bat la protection.\n\n- **Campagne** : « Les Cimes en flammes », sur une carte du monde. Neuf quêtes, des choix qui changent la suite, un héros qui progresse, un domaine à bâtir et un marché, jusqu'au Roi-Dragon.\n- **Énigmes** : des positions toutes prêtes où une seule carte gagne, et d'autres tirées au hasard.\n- **Partie rapide, défi du jour, siège sans fin** contre l'IA à trois niveaux, et **deux joueurs** sur le même écran ou en réseau local.\n\nLes marques au-dessus des salles annoncent ce que chaque camp frappera à la fin du tour, le bouton Conseil te propose un coup et l'explique, et la liste des cartes les montre toutes.",
+  "controls": "- Clic sur une carte, puis sur la colonne ou la salle visée : la jouer. Clic droit sur une carte : la défausser (+5 or).\n- Clavier : 1 à 9 pour choisir une carte, flèches pour la cible, Entrée ou Espace pour jouer, D pour défausser, H pour un conseil, Échap pour annuler ou mettre en pause, F11 pour le plein écran.\n- Manette : LB / RB pour désigner une carte, A pour la choisir et confirmer, la croix pour la cible, B pour annuler, X pour défausser, Y pour un conseil, Start pour la pause.\n- Survol d'une salle ou d'une marque de menace : ce qu'elle fait et ce qu'elle va prendre.",
+  "genres": [
+    "Cartes",
+    "Stratégie"
+  ],
+  "players": "Solo ou à deux",
+  "language": "Français",
+  "status": "Version 1.0",
+  "pixelArt": true,
+  "media": {
+    "cover": "media/shot-01.webp",
+    "icon": "media/icon.png",
+    "screenshots": [
+      "media/shot-01.webp",
+      "media/shot-02.webp",
+      "media/shot-03.webp"
+    ]
+  },
+  "versions": [
+    {
+      "version": "1.000",
+      "date": "2026-11-21",
+      "notes": "Première version publiée : un duel de châteaux sur deux montagnes, une carte par tour. Campagne « Les Cimes en flammes » en neuf quêtes jusqu'au Roi-Dragon, énigmes, siège sans fin, défi du jour, et deux joueurs sur le même écran ou en réseau local.",
+      "milestone": true,
+      "available": true,
+      "files": {
+        "windows": {
+          "file": "bastions/1.000/bastions-v1.000-windows-x64.exe",
+          "size": 109792872,
+          "sha256": "e6d08c09337d7f45a2e3a996a45afbcd7f4553793efa02d0bc6da6e650beef0c"
+        },
+        "android": {
+          "file": "bastions/1.000/bastions-v1.000-android.apk",
+          "size": 53227713,
+          "sha256": "06ae480e9234a97dc4c1659559f0387bf48e7f5a3aa04874d583c343d9aa1b9c"
+        },
+        "macos": {
+          "file": "bastions/1.000/bastions-v1.000-macos.zip",
+          "size": 61582223,
+          "sha256": "2e44fb280eccd8b6c20825351e4792f2cb317eee6a67c50cf3eaf2e8eef88e19"
+        }
+      }
+    }
+  ],
+  "androidCert": "93ef450a99aee93d6448017871822d4e59ae3bd24467d77690bba1c163119e36"
+}
