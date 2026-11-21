@@ -23,6 +23,30 @@
   },
   "versions": [
     {
+      "version": "1.001",
+      "date": "2026-11-21",
+      "notes": "Corrections : la salle du conseil propose bien ses contrats dès qu'elle est bâtie, et une carte à choisir (victoire ou commande) ne se perd plus si tu quittes. Les boss réagissent à la vraie moitié de leur tour, et plus après leur chute ; les sentinelles visent le bon adversaire à plusieurs, et les replays des combats de boss se rejouent juste.",
+      "milestone": false,
+      "available": true,
+      "files": {
+        "windows": {
+          "file": "fortelune/1.001/fortelune-v1.001-windows-x64.exe",
+          "size": 113985952,
+          "sha256": "cd5c6c9ece37dea403b8e0c85110490abcd9ab7568b32c4b9caa7ac43b51599e"
+        },
+        "android": {
+          "file": "fortelune/1.001/fortelune-v1.001-android.apk",
+          "size": 57652711,
+          "sha256": "2e01833f74355c367fca54ff7be5f3598a99e9582a2d69e8e094a7455b7f3c40"
+        },
+        "macos": {
+          "file": "fortelune/1.001/fortelune-v1.001-macos.zip",
+          "size": 64882087,
+          "sha256": "3e2ca7747ecab30e631a7d7a119b7ee410ec37ab792bbe49568b08f9724d6336"
+        }
+      }
+    },
+    {
       "version": "1.000",
       "date": "2026-11-21",
       "notes": "Première version publiée : des duels de tours sous une lune qui change les règles, un tournoi de cinq adversaires, une campagne en trois actes dans les Marches de Lune, des énigmes et un grimoire de 218 cartes animées.",
