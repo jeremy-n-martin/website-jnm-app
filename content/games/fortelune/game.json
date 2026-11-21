@@ -1,0 +1,51 @@
+{
+  "title": "Fortelune",
+  "source": "arcomage",
+  "tagline": "Élève ta tour jusqu'à 60, ou abats celle d'en face, sous une lune qui change les règles toutes les deux manches.",
+  "summary": "Chaque manche, tu joues une carte de ta main ou tu la recycles. Tes cartes coûtent de la pierre, du mana ou de l'acier ; elles élèvent ta tour et ton rempart, font monter tes productions ou frappent le camp d'en face. Tu gagnes en portant ta tour à **60**, ou en faisant tomber celle de ton adversaire.\n\nLa **lune** change toutes les deux manches et modifie les règles : attaques renforcées, remparts plus solides, recyclage plus rentable. La suivante est annoncée, à toi d'en profiter. Les **bâtiments** agissent à chaque manche, les **raids** s'installent chez l'ennemi, et un **triangle des avantages** récompense la bonne couleur au bon moment.\n\n- **Tournoi** : cinq adversaires, de Pip le Grillon, très facile, au Roi sans Lune, chacun avec son style et ses répliques.\n- **Campagne** : trois actes dans les Marches de Lune, avec un seul paquet de 40 à 60 cartes. Tes choix changent les combats suivants, trois factions s'en souviennent, et tu bâtis ton Logis, engages des compagnons, affrontes les champions des villes et cherches huit cartes dorées.\n- **Énigmes, 2 contre 2, Hasard** : une position et une main fixées à résoudre, des duels à plusieurs couloirs, des parties libres sous les règles de ton choix.\n\nLe **Grimoire** montre les 218 cartes et leurs animations, un **tutoriel** guidé t'apprend les bases, et les **replays** gardent tes meilleures parties.",
+  "controls": "- Clic gauche sur une carte : la jouer. Clic droit : la recycler.\n- Flèches : choisir une carte. Entrée : jouer. Maj + Entrée : recycler. 1 à 8 : jouer, Maj + 1 à 8 : recycler.\n- Échap : pause (vitesse, volumes, journal du duel). M : son. N : musique. F11 : plein écran.\n- Manette : croix ou stick pour choisir, A pour jouer et valider, X pour recycler, B ou Start pour revenir ou mettre en pause.\n- Écran tactile : touche une carte, puis Jouer ou Recycler.",
+  "genres": [
+    "Cartes",
+    "Stratégie"
+  ],
+  "players": "Solo",
+  "language": "Français",
+  "status": "Version 1.0",
+  "pixelArt": true,
+  "media": {
+    "cover": "media/shot-01.webp",
+    "icon": "media/icon.png",
+    "screenshots": [
+      "media/shot-01.webp",
+      "media/shot-02.webp",
+      "media/shot-03.webp"
+    ]
+  },
+  "versions": [
+    {
+      "version": "1.000",
+      "date": "2026-11-21",
+      "notes": "Première version publiée : des duels de tours sous une lune qui change les règles, un tournoi de cinq adversaires, une campagne en trois actes dans les Marches de Lune, des énigmes et un grimoire de 218 cartes animées.",
+      "milestone": true,
+      "available": true,
+      "files": {
+        "windows": {
+          "file": "fortelune/1.000/fortelune-v1.000-windows-x64.exe",
+          "size": 113982496,
+          "sha256": "84d4f405e158bbc2cea1390a2c2509eb82e4c7279b87c60c4dea0c9ddfd4284b"
+        },
+        "android": {
+          "file": "fortelune/1.000/fortelune-v1.000-android.apk",
+          "size": 57648615,
+          "sha256": "2ee3a3c61e8fb4165cc2df8d23e04d73d1085e37412f2d930035ed19de42cb76"
+        },
+        "macos": {
+          "file": "fortelune/1.000/fortelune-v1.000-macos.zip",
+          "size": 64878391,
+          "sha256": "052c010416663701b48bd0e16e3e2a7bda115f2585830ec0157cc072ed08c12f"
+        }
+      }
+    }
+  ],
+  "androidCert": "dfae048577e983b1a4e7f9484e2c8dc6a1082180f62234f9a5f1cd99f87f7499"
+}
