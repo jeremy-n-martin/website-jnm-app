@@ -1,0 +1,40 @@
+{
+  "title": "PromptCraft",
+  "source": "promptcraft",
+  "tagline": "Des assistants d'IA gardent un secret : repère les messages qui cherchent à le leur faire lâcher.",
+  "summary": "Des assistants d'IA ont une consigne : garder un code secret, rester dans leur sujet, ne pas obéir aux ordres glissés dans un document. On leur a envoyé 166 messages, de vraies attaques et de vraies demandes, et leurs réponses sont réelles : le jeu te dit quel modèle a répondu (Claude Sonnet 5.5 ou Claude Haiku 5.5) et combien de fois il a cédé.\n\nÀ chaque manche, tu juges. Attaque ou demande normale ? Le bot a-t-il tenu, dérivé ou cédé ? À quel tour de la conversation ça bascule ? Quelle phrase de la page web est piégée ? Tu prends la loupe pour lire le texte invisible à l'écran, tu tries la mémoire d'un assistant, tu approuves ou refuses les actions d'un agent.\n\nAprès ta réponse, les passages qui trahissent l'attaque sont surlignés, avec le mécanisme et le cas où le même signe est innocent. Le score compte à part les attaques repérées et les fausses alertes : soupçonner tout le monde ne paie pas.\n\n- **Campagne** en trois actes : les formules historiques, le contexte, puis les agents (outils, mémoire, documents piégés).\n- **Révision** : tes erreurs reviennent le lendemain, puis de plus en plus espacées.\n- **Atelier de défense** : tu ajoutes une phrase au prompt d'un assistant, tu prédis s'il tient face à trois vagues d'attaques, puis tu choisis la protection qui marche vraiment.\n- **Bibliothèque** : une fiche par famille de manipulation, avec un exemple commenté.\n\nLes secrets sont fictifs (un code de coffre, la réponse d'une énigme) : le jeu t'apprend à reconnaître les manipulations, pas à en écrire.",
+  "controls": "- Souris : clique sur ta réponse, puis sur le bouton en bas à droite pour continuer.\n- Clavier : touches 1 à 5 pour répondre, Entrée pour continuer, G, P ou C pour dire ta confiance, L pour la loupe, Échap pour la pause.\n- Flèches ou Tab pour passer d'un bouton à l'autre. Manette : A valide, B revient en arrière, Start met en pause.\n- M coupe le son, R réduit les animations. O ouvre les réglages depuis l'accueil, avec la taille du texte.",
+  "genres": [
+    "Éducatif",
+    "Réflexion"
+  ],
+  "players": "Solo",
+  "language": "Français",
+  "status": "Version 1.0",
+  "pixelArt": false,
+  "media": {
+    "cover": "media/shot-01.webp",
+    "icon": null,
+    "screenshots": [
+      "media/shot-01.webp",
+      "media/shot-02.webp",
+      "media/shot-03.webp"
+    ]
+  },
+  "versions": [
+    {
+      "version": "1.000",
+      "date": "2026-11-21",
+      "notes": "Première version : 166 messages réellement envoyés à deux modèles, attaques et vraies demandes, avec campagne en trois actes, révision et atelier de défense. Nouveau jeu de couleurs, réglages avec la taille du texte, jeu au clavier et à la manette.",
+      "milestone": true,
+      "available": true,
+      "files": {
+        "windows": {
+          "file": "promptcraft/1.000/promptcraft-v1.000-windows-x64.exe",
+          "size": 110361128,
+          "sha256": "a33ff10435c496112aff4ae28c418f600e02b0524d962f70ecc966b1ceaca6ec"
+        }
+      }
+    }
+  ]
+}
