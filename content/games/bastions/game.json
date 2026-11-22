@@ -2,8 +2,8 @@
   "title": "Bastions",
   "source": "chateaux",
   "tagline": "Bâtis ton château sur ta montagne et abats celui d'en face, une carte par tour.",
-  "summary": "Chaque tour, tu joues une seule carte de ta main, ou tu la défausses contre 5 or. Tes cartes bâtissent des salles, les peuplent ou lancent des sorts ; puis toutes tes salles agissent : les archers tirent, la catapulte lance ses boulets, la caserne charge, les greniers rapportent de l'or. Tu gagnes en abattant le trône ennemi, en réduisant son château à deux salles pour que son roi s'enfuie, ou en bâtissant le tien jusqu'à **20 cases**.\n\nTes habitants se rangent en quatre classes : les gueux attaquent, les bourgeois font rentrer l'or, les chevaliers défendent, les nobles lancent la magie. La place compte : archers en hauteur, caserne au rez-de-chaussée, greniers à l'arrière, et deux salles voisines s'allient parfois. Un **triangle** récompense la bonne riposte : la protection bat l'attaque, l'attaque bat la construction, la construction bat la protection.\n\n- **Campagne** : « Les Cimes en flammes », sur une carte du monde. Neuf quêtes, des choix qui changent la suite, un héros qui progresse, un domaine à bâtir et un marché, jusqu'au Roi-Dragon.\n- **Énigmes** : des positions toutes prêtes où une seule carte gagne, et d'autres tirées au hasard.\n- **Partie rapide, défi du jour, siège sans fin** contre l'IA à trois niveaux, et **deux joueurs** sur le même écran ou en réseau local.\n\nLes marques au-dessus des salles annoncent ce que chaque camp frappera à la fin du tour, le bouton Conseil te propose un coup et l'explique, et la liste des cartes les montre toutes.",
-  "controls": "- Clic sur une carte, puis sur la colonne ou la salle visée : la jouer. Clic droit sur une carte : la défausser (+5 or).\n- Clavier : 1 à 9 pour choisir une carte, flèches pour la cible, Entrée ou Espace pour jouer, D pour défausser, H pour un conseil, Échap pour annuler ou mettre en pause, F11 pour le plein écran.\n- Manette : LB / RB pour désigner une carte, A pour la choisir et confirmer, la croix pour la cible, B pour annuler, X pour défausser, Y pour un conseil, Start pour la pause.\n- Survol d'une salle ou d'une marque de menace : ce qu'elle fait et ce qu'elle va prendre.",
+  "summary": "Chaque tour, tu touches une carte de ta main et elle se joue ; si aucune n'est jouable, ton tour passe. Tes cartes bâtissent des salles, les peuplent ou lancent des sorts ; puis toutes tes salles agissent : les archers tirent, la catapulte lance ses boulets, la caserne charge, les greniers rapportent de l'or. Tu gagnes en abattant le trône ennemi, en réduisant son château à deux salles pour que son roi s'enfuie, ou en bâtissant le tien jusqu'à **20 cases**.\n\nTes habitants se rangent en quatre classes : les gueux attaquent, les bourgeois font rentrer l'or, les chevaliers défendent, les nobles lancent la magie. La place compte : archers en hauteur, caserne au rez-de-chaussée, greniers à l'arrière, et deux salles voisines s'allient parfois. Un **triangle** récompense la bonne riposte : la protection bat l'attaque, l'attaque bat la construction, la construction bat la protection.\n\n- **Campagne** : « Les Cimes en flammes », sur une carte du monde. Neuf quêtes, des choix qui changent la suite, un héros qui progresse, un domaine à bâtir et un marché, jusqu'au Roi-Dragon.\n- **Énigmes** : des positions toutes prêtes où une seule carte gagne, et d'autres tirées au hasard.\n- **Partie rapide, défi du jour, siège sans fin** contre l'IA à trois niveaux, et **deux joueurs** sur le même écran ou en réseau local.\n\nLes marques au-dessus des salles annoncent ce que chaque camp frappera à la fin du tour, le bouton Conseil te propose un coup et l'explique, et la liste des cartes les montre toutes.",
+  "controls": "- Toucher ou clic sur une carte : elle se joue. Si elle demande une cible, les colonnes ou les salles possibles s'éclairent : touche-en une (une salle tombe au sommet de la colonne choisie). Clic droit : annuler.\n- Clavier : 1 à 9 pour choisir une carte, flèches pour la cible, Entrée ou Espace pour jouer, H pour un conseil, Échap pour annuler ou mettre en pause, F11 pour le plein écran.\n- Manette : LB / RB pour désigner une carte, A pour la choisir et confirmer, la croix pour la cible, B pour annuler, Y pour un conseil, Start pour la pause.\n- Survol d'une salle ou d'une marque de menace : ce qu'elle fait et ce qu'elle va prendre.",
   "genres": [
     "Cartes",
     "Stratégie"
@@ -22,6 +22,30 @@
     ]
   },
   "versions": [
+    {
+      "version": "1.001",
+      "date": "2026-11-22",
+      "notes": "Jouer d'un toucher : une carte se joue d'un seul toucher ou clic. Plus de défausse : sans carte jouable, ton tour passe. Cibles bien éclairées (colonnes et salles) et boutons plus épais pour le doigt.",
+      "milestone": false,
+      "available": true,
+      "files": {
+        "windows": {
+          "file": "bastions/1.001/bastions-v1.001-windows-x64.exe",
+          "size": 109789736,
+          "sha256": "976b139db905e7ccd96e10ad773f06d544d2403fec53d5dde5ac8a91915cdc98"
+        },
+        "android": {
+          "file": "bastions/1.001/bastions-v1.001-android.apk",
+          "size": 53223617,
+          "sha256": "23d8be2bb79058d9295f9f69393869f759343a2c206c8e143183a67a992f9cab"
+        },
+        "macos": {
+          "file": "bastions/1.001/bastions-v1.001-macos.zip",
+          "size": 61579190,
+          "sha256": "edecdab338998d48fe0f7b257282d0e4de7ae47798aa04da76f2e13950647a21"
+        }
+      }
+    },
     {
       "version": "1.000",
       "date": "2026-11-21",
