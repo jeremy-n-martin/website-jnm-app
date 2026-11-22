@@ -1,17 +1,17 @@
 {
   "title": "Parjure",
   "source": "parjure",
-  "tagline": "Défends ton client devant le jury. Vrai, à moitié vrai ou inventé : à toi de choisir.",
-  "summary": "Dans **Parjure**, tu plaides devant un tribunal. Chaque procès oppose des faits historiques, des sciences à la mémoire, et tu dois faire pencher le jury en ta faveur.\n\nTu peux avancer la vérité, appuyée par des preuves de plus en plus solides, ou un fait inventé, plus séduisant mais risqué : si le parjure est découvert, la sanction tombe. Chaque accusé a son style, **Logos**, **Ethos** ou **Pathos**, et les articles du tribunal changent les règles d'un procès à l'autre.\n\nQuatre procès : la Science, la Mémoire, la Terre et les Machines. Les faits vrais sont sourcés : on apprend aussi en jouant.",
-  "controls": "- Souris ou doigt : choisis tes arguments et tes preuves.",
+  "tagline": "Tu es l'accusé : réfute l'accusation avec la bonne pièce… ou mens, et tiens ton mensonge jusqu'au verdict.",
+  "summary": "Dans **Parjure**, tu es l'accusé. Face à toi, l'accusation est tenue par l'un des onze autres personnages, tiré au sort : à chaque manche, il affirme un fait d'histoire des sciences. Parfois c'est vrai, parfois c'est inventé.\n\nSi c'est faux, trouve dans ton dossier la pièce qui le contredit précisément : le jury te suit. Si c'est vrai, à toi de choisir : l'assumer, ce qui coûte du crédit mais rend de la confiance, ou mentir pour gagner du terrain.\n\nChaque mensonge revient au contre-interrogatoire : le maintenir coûte de plus en plus de confiance, l'avouer coûte du crédit. À la fin, les douze jurés votent.\n\nQuatre procès (la Science, la Mémoire, la Terre, les Machines) et 32 faits réels, chacun avec sa source, affichée après chaque manche. Douze accusés jouables, avec les mêmes règles pour tous.\n\nPour commencer, un entraînement guidé de deux manches. Ensuite : le procès en appel, où l'honnêteté seule ne suffit plus, le procès du jour, le même pour tout le monde avec une règle en plus, et un palmarès de dix objectifs.",
+  "controls": "- Souris ou doigt : choisis une pièce, une défense ou un bouton.\n- Clavier : touches 1 à 4 pour choisir, flèches et Entrée pour naviguer, Échap pour la pause.\n- Android : le bouton retour ouvre la pause.",
   "genres": [
     "Narratif",
     "Stratégie",
-    "Cartes"
+    "Éducatif"
   ],
   "players": "Solo",
   "language": "Français",
-  "status": "Prototype",
+  "status": "Version 1.0",
   "pixelArt": false,
   "media": {
     "cover": "media/shot-01.webp",
@@ -19,17 +19,34 @@
     "screenshots": [
       "media/shot-01.webp",
       "media/shot-02.webp",
-      "media/shot-03.webp",
-      "media/shot-04.webp",
-      "media/shot-05.webp",
-      "media/shot-06.webp",
-      "media/shot-07.webp",
-      "media/shot-08.webp",
-      "media/shot-09.webp",
-      "media/shot-10.webp"
+      "media/shot-03.webp"
     ]
   },
   "versions": [
+    {
+      "version": "1.000",
+      "date": "2026-11-22",
+      "notes": "Première version complète : style illustré, l'accusation tenue par un autre des douze accusés tiré au sort, procès en appel, procès du jour avec série et partage, entraînement guidé et palmarès de dix objectifs.\n\nAndroid : nouvelle signature de l’application. Désinstalle l’ancienne version avant d’installer celle-ci (la progression sur le téléphone repart de zéro).",
+      "milestone": true,
+      "available": true,
+      "files": {
+        "windows": {
+          "file": "parjure/1.000/parjure-v1.000-windows-x64.exe",
+          "size": 161712512,
+          "sha256": "c13dff770e5f654502e3d2bfcbdef3c450c378cabe2a5941b449e1906d037f68"
+        },
+        "android": {
+          "file": "parjure/1.000/parjure-v1.000-android.apk",
+          "size": 78977851,
+          "sha256": "73ba117d92e1fd7369f35ab178074c47bca168b88a597347d51d266c97c6ca31"
+        },
+        "macos": {
+          "file": "parjure/1.000/parjure-v1.000-macos.zip",
+          "size": 112737993,
+          "sha256": "8a25d77f3f6bcfe701601a581decec359e82fa0bd3718cbe5d288dad6a1807ea"
+        }
+      }
+    },
     {
       "version": "0.1.0",
       "date": "2026-10-28",
@@ -55,5 +72,5 @@
       }
     }
   ],
-  "hidden": true
+  "androidCert": "354081fdaec0f71e9968177d41fd46b49204cda72ce276e3b95e51e507e844d9"
 }
