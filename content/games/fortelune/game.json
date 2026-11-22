@@ -2,8 +2,8 @@
   "title": "Fortelune",
   "source": "arcomage",
   "tagline": "Élève ta tour jusqu'à 60, ou abats celle d'en face, sous une lune qui change les règles toutes les deux manches.",
-  "summary": "Chaque manche, tu joues une carte de ta main ou tu la recycles. Tes cartes coûtent de la pierre, du mana ou de l'acier ; elles élèvent ta tour et ton rempart, font monter tes productions ou frappent le camp d'en face. Tu gagnes en portant ta tour à **60**, ou en faisant tomber celle de ton adversaire.\n\nLa **lune** change toutes les deux manches et modifie les règles : attaques renforcées, remparts plus solides, recyclage plus rentable. La suivante est annoncée, à toi d'en profiter. Les **bâtiments** agissent à chaque manche, les **raids** s'installent chez l'ennemi, et un **triangle des avantages** récompense la bonne couleur au bon moment.\n\n- **Tournoi** : cinq adversaires, de Pip le Grillon, très facile, au Roi sans Lune, chacun avec son style et ses répliques.\n- **Campagne** : trois actes dans les Marches de Lune, avec un seul paquet de 40 à 60 cartes. Tes choix changent les combats suivants, trois factions s'en souviennent, et tu bâtis ton Logis, engages des compagnons, affrontes les champions des villes et cherches huit cartes dorées.\n- **Énigmes, 2 contre 2, Hasard** : une position et une main fixées à résoudre, des duels à plusieurs couloirs, des parties libres sous les règles de ton choix.\n\nLe **Grimoire** montre les 218 cartes et leurs animations, un **tutoriel** guidé t'apprend les bases, et les **replays** gardent tes meilleures parties.",
-  "controls": "- Clic gauche sur une carte : la jouer. Clic droit : la recycler.\n- Flèches : choisir une carte. Entrée : jouer. Maj + Entrée : recycler. 1 à 8 : jouer, Maj + 1 à 8 : recycler.\n- Échap : pause (vitesse, volumes, journal du duel). M : son. N : musique. F11 : plein écran.\n- Manette : croix ou stick pour choisir, A pour jouer et valider, X pour recycler, B ou Start pour revenir ou mettre en pause.\n- Écran tactile : touche une carte, puis Jouer ou Recycler.",
+  "summary": "Chaque manche, tu joues une carte de ta main : un clic ou un toucher suffit. Si aucune n'est jouable, tu passes ton tour. Tes cartes coûtent de la pierre, du mana ou de l'acier ; elles élèvent ta tour et ton rempart, font monter tes productions ou frappent le camp d'en face. Tu gagnes en portant ta tour à **60**, ou en faisant tomber celle de ton adversaire.\n\nLa **lune** change toutes les deux manches et modifie les règles : attaques renforcées, remparts plus solides, tour qui monte plus vite. La suivante est annoncée, à toi d'en profiter. Les **bâtiments** agissent à chaque manche, les **raids** s'installent chez l'ennemi, et un **triangle des avantages** récompense la bonne couleur au bon moment.\n\n- **Tournoi** : cinq adversaires, de Pip le Grillon, très facile, au Roi sans Lune, chacun avec son style et ses répliques.\n- **Campagne** : trois actes dans les Marches de Lune, avec un seul paquet de 40 à 60 cartes. Tes choix changent les combats suivants, trois factions s'en souviennent, et tu bâtis ton Logis, engages des compagnons, affrontes les champions des villes et cherches huit cartes dorées.\n- **Énigmes, 2 contre 2, Hasard** : une position et une main fixées à résoudre, des duels à plusieurs couloirs, des parties libres sous les règles de ton choix.\n\nLe **Grimoire** montre les 218 cartes et leurs animations, un **tutoriel** guidé t'apprend les bases, et les **replays** gardent tes meilleures parties.",
+  "controls": "- Clic sur une carte : la jouer. Si aucune carte n'est jouable, ton tour passe tout seul.\n- Flèches : choisir une carte. Entrée ou 1 à 8 : jouer.\n- Échap : pause (vitesse, volumes, journal du duel). M : son. N : musique. F11 : plein écran.\n- Manette : croix ou stick pour choisir, A pour jouer et valider, B ou Start pour revenir ou mettre en pause.\n- Écran tactile : touche une carte pour la jouer.",
   "genres": [
     "Cartes",
     "Stratégie"
@@ -22,6 +22,30 @@
     ]
   },
   "versions": [
+    {
+      "version": "1.002",
+      "date": "2026-11-22",
+      "notes": "Un clic ou un toucher sur une carte la joue aussitôt. Plus de défausse : sans carte jouable, le tour passe (même après une carte Rejoue). Boutons plus épais partout, menu principal refait.",
+      "milestone": false,
+      "available": true,
+      "files": {
+        "windows": {
+          "file": "fortelune/1.002/fortelune-v1.002-windows-x64.exe",
+          "size": 113986128,
+          "sha256": "324ea3cf7edd29455181bb88cb0ee98125c3f7203e31d3b66ab39d0b1ab880bb"
+        },
+        "android": {
+          "file": "fortelune/1.002/fortelune-v1.002-android.apk",
+          "size": 57652711,
+          "sha256": "fc71b3b74eabbbeadcd005ee7774f064f05a6b9fc34e9bd53a41cc0fac4f7f4f"
+        },
+        "macos": {
+          "file": "fortelune/1.002/fortelune-v1.002-macos.zip",
+          "size": 64882262,
+          "sha256": "14947f5992b04087b29e3617c75d00831b5ecf9a94922a910e479a96e68c6039"
+        }
+      }
+    },
     {
       "version": "1.001",
       "date": "2026-11-21",
