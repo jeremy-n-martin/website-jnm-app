@@ -2,8 +2,8 @@
   "title": "Fortelune",
   "source": "arcomage",
   "tagline": "Élève ta tour jusqu'à 60, ou abats celle d'en face, sous une lune qui change les règles toutes les deux manches.",
-  "summary": "Chaque manche, tu joues une carte de ta main : un clic ou un toucher suffit. Si aucune n'est jouable, tu passes ton tour. Tes cartes coûtent de la pierre, du mana ou de l'acier ; elles élèvent ta tour et ton rempart, font monter tes productions ou frappent le camp d'en face. Tu gagnes en portant ta tour à **60**, ou en faisant tomber celle de ton adversaire.\n\nLa **lune** change toutes les deux manches et modifie les règles : attaques renforcées, remparts plus solides, tour qui monte plus vite. La suivante est annoncée, à toi d'en profiter. Les **bâtiments** agissent à chaque manche, les **raids** s'installent chez l'ennemi, et un **triangle des avantages** récompense la bonne couleur au bon moment.\n\n- **Tournoi** : cinq adversaires, de Pip le Grillon, très facile, au Roi sans Lune, chacun avec son style et ses répliques.\n- **Campagne** : trois actes dans les Marches de Lune, avec un seul paquet de 40 à 60 cartes. Tes choix changent les combats suivants, trois factions s'en souviennent, et tu bâtis ton Logis, engages des compagnons, affrontes les champions des villes et cherches huit cartes dorées.\n- **Énigmes, 2 contre 2, Hasard** : une position et une main fixées à résoudre, des duels à plusieurs couloirs, des parties libres sous les règles de ton choix.\n\nLe **Grimoire** montre les 218 cartes et leurs animations, un **tutoriel** guidé t'apprend les bases, et les **replays** gardent tes meilleures parties.",
-  "controls": "- Clic sur une carte : la jouer. Si aucune carte n'est jouable, ton tour passe tout seul.\n- Flèches : choisir une carte. Entrée ou 1 à 8 : jouer.\n- Échap : pause (vitesse, volumes, journal du duel). M : son. N : musique. F11 : plein écran.\n- Manette : croix ou stick pour choisir, A pour jouer et valider, B ou Start pour revenir ou mettre en pause.\n- Écran tactile : touche une carte pour la jouer.",
+  "summary": "Chaque manche, tu joues une carte de ta main : un clic ou un toucher suffit. Si aucune n'est jouable, tu passes ton tour. Tes cartes coûtent de la pierre, du mana ou de l'acier ; elles élèvent ta tour et ton rempart, font monter tes productions ou frappent le camp d'en face. Tu gagnes en portant ta tour à **60**, ou en faisant tomber celle de ton adversaire.\n\nLa **lune** change toutes les deux manches et modifie les règles : attaques renforcées, remparts plus solides, tour qui monte plus vite. La suivante est annoncée, à toi d'en profiter. Les **bâtiments** agissent à chaque manche, les **raids** s'installent chez l'ennemi, et un **triangle des avantages** récompense la bonne couleur au bon moment.\n\n- **Tournoi** : cinq adversaires, de Pip le Grillon, très facile, au Roi sans Lune, chacun avec son style et ses répliques.\n- **Campagne** : trois actes dans les Marches de Lune, avec un seul paquet de 40 à 60 cartes. Tes choix changent les combats suivants, trois factions s'en souviennent, et tu bâtis ton Logis, engages des compagnons, affrontes les champions des villes et cherches huit cartes dorées.\n- **Défi du jour, Tournoi héroïque** : chaque jour un duel tiré au sort, le même pour tous ; et, une fois le tournoi remporté, des adversaires plus coriaces et une couronne à gagner contre chacun.\n- **Énigmes, 2 contre 2, Hasard** : une position et une main fixées à résoudre, des duels à plusieurs couloirs, des parties libres sous les règles de ton choix.\n\nLe **Grimoire** montre les 218 cartes et leurs animations, un **tutoriel** guidé t'apprend les bases, et les **replays** gardent tes meilleures parties.",
+  "controls": "- Clic sur une carte : la jouer. Si aucune carte n'est jouable, ton tour passe tout seul.\n- Flèches : choisir une carte. Entrée ou 1 à 8 : jouer. C : conseil de la Hulotte.\n- Échap : pause (vitesse, volumes, journal du duel). M : son. N : musique. F11 : plein écran.\n- Manette : croix ou stick pour choisir, A pour jouer et valider, Y pour un conseil, B ou Start pour revenir ou mettre en pause.\n- Écran tactile : touche une carte pour la jouer, appui long pour voir son aperçu. Le bouton Retour met en pause.",
   "genres": [
     "Cartes",
     "Stratégie"
@@ -22,6 +22,30 @@
     ]
   },
   "versions": [
+    {
+      "version": "1.003",
+      "date": "2026-11-23",
+      "notes": "Défi du jour, Tournoi héroïque, Conseil de la Hulotte, reprise d'un duel interrompu. Au doigt : appui long pour l'aperçu, bouton Retour en pause. Campagne : 20 rencontres, 5 quêtes, 8 tâches et 9 énigmes de plus.",
+      "milestone": false,
+      "available": true,
+      "files": {
+        "windows": {
+          "file": "fortelune/1.003/fortelune-v1.003-windows-x64.exe",
+          "size": 114027056,
+          "sha256": "0ce861d232f7e9d595531ff8af7eccd4a9805a41dcea47f2ae4db902b33ad03e"
+        },
+        "android": {
+          "file": "fortelune/1.003/fortelune-v1.003-android.apk",
+          "size": 57689575,
+          "sha256": "c505c91074168f1e3b0f7d87ce53bccf375880d961827357b4dca26d19c8f8f8"
+        },
+        "macos": {
+          "file": "fortelune/1.003/fortelune-v1.003-macos.zip",
+          "size": 64922483,
+          "sha256": "d20c1990bedf8b865a3e258fd4d812edf3c4cd6ac59988af12aacee49b5624e2"
+        }
+      }
+    },
     {
       "version": "1.002",
       "date": "2026-11-22",
