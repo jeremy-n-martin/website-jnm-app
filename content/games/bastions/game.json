@@ -3,7 +3,7 @@
   "source": "chateaux",
   "tagline": "Bâtis ton château sur ta montagne et abats celui d'en face, une carte par tour.",
   "summary": "Chaque tour, tu touches une carte de ta main et elle se joue ; si aucune n'est jouable, ton tour passe. Tes cartes bâtissent des salles, les peuplent ou lancent des sorts ; puis toutes tes salles agissent : les archers tirent, la catapulte lance ses boulets, la caserne charge, les greniers rapportent de l'or. Tu gagnes en abattant le trône ennemi, en réduisant son château à deux salles pour que son roi s'enfuie, ou en bâtissant le tien jusqu'à **20 cases**.\n\nTes habitants se rangent en quatre classes : les gueux attaquent, les bourgeois font rentrer l'or, les chevaliers défendent, les nobles lancent la magie. La place compte : archers en hauteur, caserne au rez-de-chaussée, greniers à l'arrière, et deux salles voisines s'allient parfois. Un **triangle** récompense la bonne riposte : la protection bat l'attaque, l'attaque bat la construction, la construction bat la protection.\n\n- **Campagne** : « Les Cimes en flammes », sur une carte du monde. Neuf quêtes, des choix qui changent la suite, un héros qui progresse, un domaine à bâtir et un marché, jusqu'au Roi-Dragon.\n- **Énigmes** : des positions toutes prêtes où une seule carte gagne, et d'autres tirées au hasard.\n- **Partie rapide, défi du jour, siège sans fin** contre l'IA à trois niveaux, et **deux joueurs** sur le même écran ou en réseau local.\n\nLes marques au-dessus des salles annoncent ce que chaque camp frappera à la fin du tour, le bouton Conseil te propose un coup et l'explique, et la liste des cartes les montre toutes.",
-  "controls": "- Toucher ou clic sur une carte : elle se joue. Si elle demande une cible, les colonnes ou les salles possibles s'éclairent : touche-en une (une salle tombe au sommet de la colonne choisie). Clic droit : annuler.\n- Clavier : 1 à 9 pour choisir une carte, flèches pour la cible, Entrée ou Espace pour jouer, H pour un conseil, Échap pour annuler ou mettre en pause, F11 pour le plein écran.\n- Manette : LB / RB pour désigner une carte, A pour la choisir et confirmer, la croix pour la cible, B pour annuler, Y pour un conseil, Start pour la pause.\n- Survol d'une salle ou d'une marque de menace : ce qu'elle fait et ce qu'elle va prendre.",
+  "controls": "- Toucher ou clic sur une carte : elle se joue. Si elle demande une cible, les colonnes ou les salles possibles s'éclairent : touche-en une (une salle tombe au sommet de la colonne choisie). Clic droit, ou glisser hors de la carte avant de lever le doigt : annuler.\n- Appui long sur une carte : son texte complet, sans la jouer. Au téléphone, l'appui long montre aussi l'aide des bandeaux et des boutons, et le bouton Retour revient en arrière.\n- Clavier : 1 à 9 pour choisir une carte, flèches pour la cible, Entrée ou Espace pour jouer, H pour un conseil, Échap pour annuler ou mettre en pause, F11 pour le plein écran.\n- Manette : LB / RB pour désigner une carte, A pour la choisir et confirmer, la croix pour la cible, B pour annuler, Y pour un conseil, Start pour la pause.\n- Survol (ou toucher) d'une salle ou d'une marque de menace : ce qu'elle fait et ce qu'elle va prendre.",
   "genres": [
     "Cartes",
     "Stratégie"
@@ -22,6 +22,30 @@
     ]
   },
   "versions": [
+    {
+      "version": "1.002",
+      "date": "2026-11-23",
+      "notes": "Au téléphone : appui long pour lire une carte ou une aide, glisser pour annuler, bouton Retour, jeu en réseau réparé, IA plus rapide. Des cartes moins chères qui servent enfin (Levée, Adoubement, Dragon, Peste…) et quatre nouvelles énigmes.",
+      "milestone": false,
+      "available": true,
+      "files": {
+        "windows": {
+          "file": "bastions/1.002/bastions-v1.002-windows-x64.exe",
+          "size": 109799944,
+          "sha256": "280af5a4769eac348fd438dbd984f6439d2b5268d14d45c4fea8f21ec40c2185"
+        },
+        "android": {
+          "file": "bastions/1.002/bastions-v1.002-android.apk",
+          "size": 53231809,
+          "sha256": "9f52352babc6fff27da88e266295c58da186773bd525a452132a5605393aea70"
+        },
+        "macos": {
+          "file": "bastions/1.002/bastions-v1.002-macos.zip",
+          "size": 61589374,
+          "sha256": "c8d2d105a4c26e5ca1332dd1e43e2e89169f1d52697e606a80b9aa77215b170a"
+        }
+      }
+    },
     {
       "version": "1.001",
       "date": "2026-11-22",
