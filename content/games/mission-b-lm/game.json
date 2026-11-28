@@ -23,6 +23,30 @@
   },
   "versions": [
     {
+      "version": "1.001",
+      "date": "2026-11-28",
+      "notes": "Quiz sur mesure, Âges éclair, simulateur de passation pour toutes les épreuves, « Revoir dans la fiche » et lecture à voix haute. Tout le contenu relu contre le support : origine de chaque rubrique affichée, 38 questions de plus, corrections. Android : un toucher n'est plus compté deux fois ; ta progression est conservée.",
+      "milestone": false,
+      "available": true,
+      "files": {
+        "windows": {
+          "file": "mission-b-lm/1.001/mission-b-lm-v1.001-windows-x64.exe",
+          "size": 114644424,
+          "sha256": "a99c1b44ffe3a4a09955f952f131ad9a55473b0122af94ccee294922d2679c4a"
+        },
+        "android": {
+          "file": "mission-b-lm/1.001/mission-b-lm-v1.001-android.apk",
+          "size": 57611261,
+          "sha256": "10171646f6408bf851691346b53a9d26e0318d3ecbd7a45daf3c8f089c261777"
+        },
+        "macos": {
+          "file": "mission-b-lm/1.001/mission-b-lm-v1.001-macos.zip",
+          "size": 65966520,
+          "sha256": "7c68ab57f49b87ee37553e569952d5a44589863028785541f7a555600a9d7625"
+        }
+      }
+    },
+    {
       "version": "1.000",
       "date": "2026-11-21",
       "notes": "Première version : 12 étapes pour réviser le B-LM, 282 questions expliquées et sourcées, 33 ateliers avec le matériel du test, 10 passations simulées où tu joues l'examinateur, et 5 cas cliniques.",
