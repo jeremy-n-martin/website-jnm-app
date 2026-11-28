@@ -23,6 +23,30 @@
   },
   "versions": [
     {
+      "version": "1.004",
+      "date": "2026-11-28",
+      "notes": "Plus sûr au doigt et sauvegardes plus solides (un classeur abîmé ne se vide plus, une victoire ne se perd plus à la fermeture). Hauts faits qui restent acquis, rencontres qui ne reviennent plus en boucle, règles de combat aux textes justes. Musique de ville qui reprend où elle en était, aperçu des cartes qui rasent.",
+      "milestone": false,
+      "available": true,
+      "files": {
+        "windows": {
+          "file": "fortelune/1.004/fortelune-v1.004-windows-x64.exe",
+          "size": 114527200,
+          "sha256": "1cce9714581522ca69347ca195df5fcdcdf4657bf1e11c7aeeb14eadb251c3b7"
+        },
+        "android": {
+          "file": "fortelune/1.004/fortelune-v1.004-android.apk",
+          "size": 58269729,
+          "sha256": "86700e17fb1f24564b373d8377cd87cb0bb84d8d360d54d3a42a2e9355045698"
+        },
+        "macos": {
+          "file": "fortelune/1.004/fortelune-v1.004-macos.zip",
+          "size": 65359754,
+          "sha256": "4f36d40afaae7c53bb229d34eb16eff6ce112a4fdd9ead9ecf3d0fa377737bd5"
+        }
+      }
+    },
+    {
       "version": "1.003",
       "date": "2026-11-23",
       "notes": "Défi du jour, Tournoi héroïque, Conseil de la Hulotte, reprise d'un duel interrompu. Au doigt : appui long pour l'aperçu, bouton Retour en pause. Campagne : 20 rencontres, 5 quêtes, 8 tâches et 9 énigmes de plus.",
@@ -75,7 +99,7 @@
       "date": "2026-11-21",
       "notes": "Corrections : la salle du conseil propose bien ses contrats dès qu'elle est bâtie, et une carte à choisir (victoire ou commande) ne se perd plus si tu quittes. Les boss réagissent à la vraie moitié de leur tour, et plus après leur chute ; les sentinelles visent le bon adversaire à plusieurs, et les replays des combats de boss se rejouent juste.",
       "milestone": false,
-      "available": true,
+      "available": false,
       "files": {
         "windows": {
           "file": "fortelune/1.001/fortelune-v1.001-windows-x64.exe",
